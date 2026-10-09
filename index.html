@@ -1,29 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<body>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Pecaña Dental Clinic Management System</title>
-<link rel="icon" type="image/png" href="images/assets/logo-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-</head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Pecaña Dental Clinic Management System</title>
+    <link rel="icon" type="image/png" href="images/assets/logo-icon.png">
 
+    <!-- Fonts & icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<!-- ======================= SPLASH SCREENS ======================= -->
 <div id="logoOnlySplash" class="logo-only-splash hidden">
     <div class="logo-splash-content">
         <img src="images/assets/logo-icon.png" alt="Pecaña Dental Clinic logo" class="admin-splash-logo">
     </div>
 </div>
 
-<!--PUBLIC WEBSITE-->
+<!-- ======================= PUBLIC WEBSITE ======================= -->
 <div id="publicApp">
 
-<!--SERVICE DETAILS MODAL-->
+<!-- SERVICE DETAILS MODAL -->
 <div id="serviceDetailsModal" class="modal hidden">
     <div class="modal-card service-details-card">
         <button type="button" class="service-details-close" onclick="closeServiceDetailsModal()">
@@ -52,7 +59,7 @@
     </div>
 </div>
 
-<!--WELCOME SPLASH-->
+<!-- WELCOME SPLASH -->
 <div id="welcomeSplash" class="welcome-splash hidden">
     <div class="welcome-splash-content">
         <img src="images/assets/logo-icon.png" alt="Pecaña Dental Clinic logo" class="welcome-splash-logo">
@@ -92,7 +99,7 @@
 })();
 </script>
 
-<!--PUBLIC HEADER-->
+<!-- PUBLIC HEADER -->
 <header class="public-header">
     <div class="public-logo" onclick="showPublicPage('home')">
         <img src="images/assets/logo-icon.png" alt="Pecaña Dental Clinic logo" class="brand-logo-img">
@@ -107,19 +114,32 @@
         <button onclick="showPublicPage('appointment')">Appointment</button>
         <button onclick="showPublicPage('queue-status')">Queue Status</button>
 
-        <!--PATIENT NOTIFICATIONS-->
-        <div class="notification-wrapper">
-            <i class="fa-solid fa-bell notification-icon" onclick="toggleNotifications('patientNotify')"></i>
-
-            <div id="patientNotifyBox" class="notification-dropdown hidden">
-                <div class="notify-header">Appointment Status</div>
-                <div class="notify-search">
-                    <input type="text" id="patientNotifySearch" placeholder="Enter Contact Number or Name">
-                    <button onclick="checkPatientNotifications()">Check Status</button>
+        <!-- PATIENT NOTIFICATIONS (bell) -->
+        <div class="nt-wrap" id="ntPublicWrap">
+            <button type="button" class="nt-bell" id="patientBell"
+                    aria-label="Appointment status" aria-expanded="false"
+                    onclick="toggleNotifications('patientNotify')">
+                <i class="fa-solid fa-bell"></i>
+                <span id="ntPatientBadge" class="nt-badge hidden">0</span>
+            </button>
+            <div id="ntPatientBox" class="nt-panel hidden" role="dialog" aria-label="Appointment status">
+                <div class="nt-head">
+                    <div>
+                        <strong>Appointment status</strong>
+                        <span>Track your booking and queue position</span>
+                    </div>
+                    <button type="button" class="nt-close" aria-label="Close"
+                            onclick="toggleNotifications('patientNotify')">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                 </div>
-                <div id="patientNotifyList" class="notify-body">
-                    <p style="padding:20px; text-align:center; color:#888;">Enter your number to see updates.</p>
-                </div>
+                <form class="nt-search" onsubmit="checkPatientNotifications(); return false;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="ntPatientSearch" autocomplete="off"
+                           placeholder="Contact number or full name">
+                    <button type="submit">Check</button>
+                </form>
+                <div id="ntPatientList" class="nt-body"></div>
             </div>
         </div>
 
@@ -127,7 +147,7 @@
     </nav>
 </header>
 
-<!--HOME-->
+<!-- HOME -->
 <section id="public-home" class="public-page active">
     <div class="hero">
         <div>
@@ -153,7 +173,6 @@
             <p>Simple, organized and patient-centered dental care.</p>
         </div>
     </div>
-    </nav>
 
     <div class="section-spacer"></div>
 
@@ -198,9 +217,10 @@
             <p>An orthodontic treatment that gradually aligns and straightens teeth while helping improve bite and overall dental alignment.</p>
             <button onclick="viewServiceDetails('Braces')">See More Details</button>
         </div>
+    </div>
 </section>
 
-<!--SERVICES-->
+<!-- SERVICES -->
 <section id="public-services" class="public-page">
     <div class="public-title">
         <span>OUR</span>
@@ -246,7 +266,7 @@
     </div>
 </section>
 
-<!--APPOINTMENT-->
+<!-- APPOINTMENT -->
 <section id="public-appointment" class="public-page">
     <div class="form-page">
         <div class="public-title">
@@ -309,14 +329,15 @@
                     <textarea id="bookingConcern" placeholder="Briefly describe your concern"></textarea>
                 </div>
 
-            <button class="btn-primary" type="submit">
-                Submit Appointment
-            </button>
+                <button class="btn-primary" type="submit">
+                    Submit Appointment
+                </button>
+            </div>
         </form>
     </div>
 </section>
 
-<!--QUEUE STATUS-->
+<!-- QUEUE STATUS -->
 <section id="public-queue-status" class="public-page">
     <div class="public-title">
         <span>QUEUE STATUS</span>
@@ -337,7 +358,7 @@
     </div>
 </section>
 
-<!--PATIENT INFORMATION-->
+<!-- PATIENT INFORMATION -->
 <section id="public-patient-info" class="public-page">
     <div class="public-title">
         <span>PATIENT INFORMATION</span>
@@ -359,8 +380,10 @@
 </section>
 
 </div>
+<!-- ===================== END PUBLIC WEBSITE ===================== -->
 
-<!--LOGIN-->
+
+<!-- ============================ LOGIN ============================ -->
 <div id="loginPage" class="login-page hidden">
     <div class="login-card">
         <div class="login-logo"><img src="images/assets/logo-icon.png" alt="Pecaña Dental Clinic logo" class="brand-logo-img login"></div>
@@ -383,7 +406,8 @@
     </div>
 </div>
 
-<!--ADMIN SYSTEM-->
+
+<!-- ========================= ADMIN SYSTEM ========================= -->
 <div id="adminApp" class="admin-app hidden">
 
 <aside class="sidebar">
@@ -458,15 +482,25 @@
     </div>
 
     <div class="admin-user-wrapper">
-        <!--ADMIN NOTIFICATIONS-->
-        <div class="notification-wrapper admin-notif">
-            <i class="fa-solid fa-bell notification-icon" onclick="toggleNotifications('adminNotify')"></i>
-            <span id="adminNotifyBadge" class="notification-badge hidden">0</span>
-
-            <div id="adminNotifyBox" class="notification-dropdown hidden">
-                <div class="notify-header">Clinic Notifications</div>
-                <div id="adminNotifyList" class="notify-body">
+        <!-- ADMIN NOTIFICATIONS (bell) -->
+        <div class="nt-wrap nt-admin" id="ntAdminWrap">
+            <button type="button" class="nt-bell" id="adminBell"
+                    aria-label="Notifications" aria-expanded="false"
+                    onclick="toggleNotifications('adminNotify')">
+                <i class="fa-solid fa-bell"></i>
+                <span id="ntAdminBadge" class="nt-badge hidden">0</span>
+            </button>
+            <div id="ntAdminBox" class="nt-panel hidden" role="dialog" aria-label="Clinic notifications">
+                <div class="nt-head">
+                    <div>
+                        <strong>Notifications</strong>
+                        <span id="ntAdminSub">You're all caught up</span>
+                    </div>
+                    <button type="button" class="nt-link" onclick="markAllAdminNotificationsRead()">
+                        Mark all as read
+                    </button>
                 </div>
+                <div id="ntAdminList" class="nt-body"></div>
             </div>
         </div>
 
@@ -476,7 +510,7 @@
     </div>
 </header>
 
-<!--DASHBOARD-->
+<!-- DASHBOARD -->
 <section id="page-dashboard" class="admin-page active">
     <div class="dashboard-cards">
         <div class="stat-card">
@@ -524,29 +558,30 @@
             <canvas id="inventoryChart"></canvas>
         </div>
     </div>
-<!--DASHBOARD ANALYTICS-->
-<div class="dashboard-analytics">
-    <div class="content-card chart-card">
-        <h3>Daily Appointment Stats</h3>
-        <canvas id="dailyApptChart"></canvas>
-    </div>
 
-    <div class="content-card chart-card">
-        <h3>Appointment Stats</h3>
-        <canvas id="apptTrendChart"></canvas>
-    </div>
-
-    <div class="content-card chart-card upcoming-card">
-        <h3>Upcoming Appointments</h3>
-        <div class="upcoming-head">
-            <button type="button" onclick="shiftUpcomingWeek(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-            <strong id="upcomingMonth">Month</strong>
-            <button type="button" onclick="shiftUpcomingWeek(1)"><i class="fa-solid fa-chevron-right"></i></button>
+    <!-- DASHBOARD ANALYTICS -->
+    <div class="dashboard-analytics">
+        <div class="content-card chart-card">
+            <h3>Daily Appointment Stats</h3>
+            <canvas id="dailyApptChart"></canvas>
         </div>
-        <div id="upcomingStrip" class="upcoming-strip"></div>
-        <div id="upcomingList" class="upcoming-list"></div>
+
+        <div class="content-card chart-card">
+            <h3>Appointment Stats</h3>
+            <canvas id="apptTrendChart"></canvas>
+        </div>
+
+        <div class="content-card chart-card upcoming-card">
+            <h3>Upcoming Appointments</h3>
+            <div class="upcoming-head">
+                <button type="button" onclick="shiftUpcomingWeek(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                <strong id="upcomingMonth">Month</strong>
+                <button type="button" onclick="shiftUpcomingWeek(1)"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div id="upcomingStrip" class="upcoming-strip"></div>
+            <div id="upcomingList" class="upcoming-list"></div>
+        </div>
     </div>
-</div>
 
     <div class="content-card">
         <h2>Quick Access</h2>
@@ -584,7 +619,7 @@
     </div>
 </section>
 
-<!--APPOINTMENT MANAGEMENT-->
+<!-- APPOINTMENT MANAGEMENT -->
 <section id="page-appointments" class="admin-page">
     <div class="page-actions">
         <div>
@@ -592,6 +627,17 @@
         </div>
 
         <div style="display: flex; gap: 10px; align-items: center;">
+            <!-- Bulk selection bar (appears when rows are checked) -->
+            <div class="bulk-bar hidden" id="apptBulkBar">
+                <span class="bulk-count" id="apptBulkCount">0 selected</span>
+                <button type="button" class="bulk-clear" title="Clear selection" onclick="clearSelection('appointment')">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+                <button type="button" class="bulk-delete-btn" onclick="requestBulkDelete('appointment')">
+                    <i class="fa-regular fa-trash-can"></i> Delete
+                </button>
+            </div>
+
             <div class="search-wrapper">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" id="appointmentSearch" placeholder="Search patient name..." onkeyup="renderAppointments()">
@@ -608,6 +654,10 @@
             <table>
                 <thead>
                     <tr>
+                        <th class="chk-col">
+                            <input type="checkbox" class="row-check" id="apptSelectAll"
+                                   title="Select all" onchange="toggleSelectAll('appointment', this.checked)">
+                        </th>
                         <th>ID</th>
                         <th>Patient</th>
                         <th>Date</th>
@@ -622,8 +672,22 @@
         </div>
     </div>
 </section>
-
-<!--APPOINTMENT QUEUE-->
+    <!-- Floating selection bar -->
+    <div class="bulk-float hidden" id="apptBulkBar" role="region" aria-label="Selected appointments">
+        <div class="bulk-pill">
+            <button type="button" class="bulk-x" title="Clear selection (Esc)" aria-label="Clear selection"
+                    onclick="clearSelection('appointment')"><i class="fa-solid fa-xmark"></i></button>
+            <span class="bulk-count"><strong id="apptBulkCount">0</strong> selected</span>
+            <button type="button" class="bulk-link hidden" id="apptBulkAll"
+                    onclick="toggleSelectAll('appointment', true)">Select all</button>
+            <span class="bulk-divider"></span>
+            <button type="button" class="bulk-delete-btn" onclick="requestBulkDelete('appointment')">
+                <i class="fa-regular fa-trash-can"></i> Delete
+            </button>
+        </div>
+    </div>
+</section>
+<!-- APPOINTMENT QUEUE -->
 <section id="page-appointmentQueue" class="admin-page">
     <div class="page-actions">
         <div>
@@ -639,7 +703,7 @@
     <div id="appointmentQueueContainer"></div>
 </section>
 
-<!--WALK-IN QUEUE-->
+<!-- WALK-IN QUEUE -->
 <section id="page-walkinQueue" class="admin-page">
     <div class="page-actions">
         <div>
@@ -659,13 +723,24 @@
     <div id="walkinQueueContainer"></div>
 </section>
 
-<!--PATIENT RECORDS-->
+<!-- PATIENT RECORDS -->
 <section id="page-patients" class="admin-page">
     <div class="page-actions">
         <div>
             <p>Manage registered clinic patients.</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
+            <!-- Bulk selection bar -->
+            <div class="bulk-bar hidden" id="patientBulkBar">
+                <span class="bulk-count" id="patientBulkCount">0 selected</span>
+                <button type="button" class="bulk-clear" title="Clear selection" onclick="clearSelection('patient')">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+                <button type="button" class="bulk-delete-btn" onclick="requestBulkDelete('patient')">
+                    <i class="fa-regular fa-trash-can"></i> Delete
+                </button>
+            </div>
+
             <div class="search-wrapper">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" id="patientSearch" placeholder="Search patient name..." onkeyup="renderPatients()">
@@ -682,6 +757,10 @@
             <table>
                 <thead>
                     <tr>
+                        <th class="chk-col">
+                            <input type="checkbox" class="row-check" id="patientSelectAll"
+                                   title="Select all" onchange="toggleSelectAll('patient', this.checked)">
+                        </th>
                         <th>ID</th>
                         <th>Patient Name</th>
                         <th>Contact</th>
@@ -696,8 +775,22 @@
         </div>
     </div>
 </section>
-
-<!--CREATE APPOINTMENT MODAL-->
+    <!-- Floating selection bar -->
+    <div class="bulk-float hidden" id="patientBulkBar" role="region" aria-label="Selected patients">
+        <div class="bulk-pill">
+            <button type="button" class="bulk-x" title="Clear selection (Esc)" aria-label="Clear selection"
+                    onclick="clearSelection('patient')"><i class="fa-solid fa-xmark"></i></button>
+            <span class="bulk-count"><strong id="patientBulkCount">0</strong> selected</span>
+            <button type="button" class="bulk-link hidden" id="patientBulkAll"
+                    onclick="toggleSelectAll('patient', true)">Select all</button>
+            <span class="bulk-divider"></span>
+            <button type="button" class="bulk-delete-btn" onclick="requestBulkDelete('patient')">
+                <i class="fa-regular fa-trash-can"></i> Delete
+            </button>
+        </div>
+    </div>
+</section>
+<!-- CREATE APPOINTMENT MODAL -->
 <div id="appointmentModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -753,7 +846,7 @@
     </div>
 </div>
 
-<!--ADD PATIENT MODAL-->
+<!-- ADD PATIENT MODAL -->
 <div id="addPatientModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -763,7 +856,7 @@
         <form id="patientForm" class="form-grid admin-form">
             <div><label>Full Name</label><input id="patientName" required placeholder="e.g. Dela Cruz, Juan M."></div>
             <div><label>Contact Number</label><input id="patientContact" required></div>
-            <div><label>Date of Birth</label><input type="date" id="patientDate of birth"></div>
+            <div><label>Date of Birth</label><input type="date" id="patientDOB"></div>
             <div>
                 <label>Gender</label>
                 <select id="patientGender">
@@ -779,7 +872,7 @@
     </div>
 </div>
 
-<!--DAILY SCHEDULE-->
+<!-- DAILY SCHEDULE -->
 <section id="page-schedule" class="admin-page">
     <div class="page-actions">
         <div>
@@ -808,7 +901,7 @@
     </div>
 </section>
 
-<!--INVENTORY-->
+<!-- INVENTORY -->
 <section id="page-inventory" class="admin-page">
     <div class="page-actions">
         <div>
@@ -834,7 +927,7 @@
     </div>
 </section>
 
-<!--FORECAST-->
+<!-- FORECAST -->
 <section id="page-forecast" class="admin-page">
     <div class="page-actions">
         <div>
@@ -868,7 +961,7 @@
     </div>
 </section>
 
-<!--REPORTS-->
+<!-- REPORTS -->
 <section id="page-reports" class="admin-page">
     <div class="page-actions reports-actions">
         <div>
@@ -951,7 +1044,7 @@
     </div>
 </section>
 
-<!--WALK-IN MODAL-->
+<!-- WALK-IN MODAL -->
 <div id="walkinModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -1006,7 +1099,7 @@
     </div>
 </div>
 
-<!--PATIENT MODAL-->
+<!-- PATIENT MODAL -->
 <div id="patientModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -1017,7 +1110,7 @@
     </div>
 </div>
 
-<!--RESTOCK MODAL-->
+<!-- RESTOCK MODAL -->
 <div id="restockModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -1041,7 +1134,7 @@
     </div>
 </div>
 
-<!--EDIT APPOINTMENT MODAL-->
+<!-- EDIT APPOINTMENT MODAL -->
 <div id="editAppointmentModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -1068,7 +1161,7 @@
     </div>
 </div>
 
-<!--APPROVE APPOINTMENT MODAL-->
+<!-- APPROVE APPOINTMENT MODAL -->
 <div id="approveDetailsModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -1083,9 +1176,7 @@
     </div>
 </div>
 
-<script src="script.js"></script>
-
-<!--CALENDAR MODAL-->
+<!-- CALENDAR MODAL -->
 <div id="calendarModal" class="modal hidden">
     <div class="modal-card" style="width: min(800px, 85%);">
         <div class="modal-header">
@@ -1096,7 +1187,7 @@
     </div>
 </div>
 
-<!--CALENDAR EVENT MODAL-->
+<!-- CALENDAR EVENT MODAL -->
 <div id="calendarEventModal" class="modal hidden">
     <div class="modal-card">
         <div class="modal-header">
@@ -1109,6 +1200,29 @@
         </div>
     </div>
 </div>
-</div>
 
+</main>
+</div>
+<!-- DELETE CONFIRMATION MODAL -->
+<div id="deleteConfirmModal" class="modal hidden">
+    <div class="modal-card delete-card" role="alertdialog" aria-labelledby="deleteConfirmTitle">
+        <div class="delete-icon"><i class="fa-solid fa-trash-can"></i></div>
+        <h2 id="deleteConfirmTitle">Delete</h2>
+        <p id="deleteConfirmText"></p>
+        <ul id="deleteConfirmList" class="delete-list"></ul>
+        <div class="delete-actions">
+            <button type="button" class="btn-outline" onclick="closeDeleteConfirm()">Cancel</button>
+            <button type="button" class="btn-danger" onclick="confirmDelete()">
+                <i class="fa-solid fa-trash"></i> <span id="deleteConfirmBtnLabel">Delete</span>
+            </button>
+        </div>
+    </div>
+</div>
+<!-- ======================= END ADMIN SYSTEM ======================= -->
+
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>

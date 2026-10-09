@@ -1,4 +1,41 @@
-/*STORAGE KEYS & GLOBAL STATE*/
+/* ==========================================================================
+   PECAÑA DENTAL CLINIC MANAGEMENT SYSTEM  -  script.js
+   --------------------------------------------------------------------------
+   TABLE OF CONTENTS  (Ctrl+F the heading text)
+    1. STORAGE KEYS & GLOBAL STATE
+    2. HELPERS
+    3. DATA (patients, appointments, queues, inventory)
+    4. INVENTORY (materials per service & deduction)
+    5. PUBLIC SITE NAVIGATION
+    6. SERVICE DETAILS MODAL
+    7. ADMIN LOGIN
+    8. ADMIN NAVIGATION
+    9. MATERIAL STEPPER
+   10. SCHEDULE VALIDATION
+   11. ADMIN: CREATE APPOINTMENT
+   12. ADMIN: EDIT APPOINTMENT
+   13. PATIENTS
+   14. APPOINTMENT LIST
+   15. PUBLIC BOOKING FORM
+   16. APPROVE APPOINTMENT
+   17. APPOINTMENT QUEUE
+   18. WALK-IN QUEUE
+   19. DAILY SCHEDULE
+   20. INVENTORY PAGE
+   21. RESTOCK FORECAST
+   22. PUBLIC QUEUE STATUS
+   23. DASHBOARD (+ extras)
+   24. REPORTS
+   25. CALENDAR
+   26. NOTIFICATIONS (admin bell + patient bell)
+   27. WELCOME SPLASH
+   28. INITIALIZATION
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. STORAGE KEYS & GLOBAL STATE
+   ========================================================================== */
 const STORAGE = {
     patients: "pecana_patients",
     appointments: "pecana_appointments",
@@ -16,7 +53,10 @@ let temporaryWalkinAdjustments = {};
 let temporaryApprovalAdjustments = {};
 let pendingApprovalId = null;
 
-/*HELPERS*/
+
+/* ==========================================================================
+   2. HELPERS
+   ========================================================================== */
 const load = (key, fallback = []) => {
     try {
         const data = JSON.parse(localStorage.getItem(key));
@@ -71,7 +111,10 @@ const nextQueue = (prefix, arr) => {
     return prefix + String(Math.max(0, ...nums) + 1).padStart(3, "0");
 };
 
-/*DATA*/
+
+/* ==========================================================================
+   3. DATA
+   ========================================================================== */
 let patients = load(STORAGE.patients, [
     { id: "P001", name: "Juan Dela Cruz", contact: "09171234567", email: "", dob: "1985-05-15", address: "Polangui, Albay", gender: "Male", emergency: "Maria Dela Cruz", concern: "Regular dental check-up", status: "Active" },
     { id: "P002", name: "Maria Santos", contact: "09181234567", email: "", dob: "1992-08-22", address: "Oas, Albay", gender: "Female", emergency: "Pedro Santos", concern: "Tooth cleaning", status: "Active" },
@@ -130,6 +173,7 @@ let inventory = load(STORAGE.inventory, DEFAULT_INVENTORY.map(i => ({ ...i })));
     if (changed) save(STORAGE.inventory, inventory);
 })();
 
+/* Keep multiple tabs in sync */
 window.addEventListener("storage", e => {
     if (!e.key) return;
     if (!Object.values(STORAGE).includes(e.key)) return;
@@ -143,7 +187,10 @@ window.addEventListener("storage", e => {
     renderAll();
 });
 
-/*INVENTORY (MATERIALS PER SERVICE & DEDUCTION)*/
+
+/* ==========================================================================
+   4. INVENTORY (materials per service & deduction)
+   ========================================================================== */
 const BOM = {
     "Dental Check-up": { "Dental Floss": 1 },
     "Dental Cleaning": { "Dental Floss": 2 },
@@ -173,7 +220,10 @@ function consumeInventory(service, appointmentId = null) {
     save(STORAGE.inventory, inventory);
 }
 
-/*PUBLIC SITE NAVIGATION*/
+
+/* ==========================================================================
+   5. PUBLIC SITE NAVIGATION
+   ========================================================================== */
 function showPublicPage(page) {
     document.getElementById("publicApp").classList.remove("hidden");
     document.getElementById("loginPage").classList.add("hidden");
@@ -218,7 +268,10 @@ function selectService(serviceName) {
     if (nameField) nameField.focus();
 }
 
-/*SERVICE DETAILS MODAL*/
+
+/* ==========================================================================
+   6. SERVICE DETAILS MODAL
+   ========================================================================== */
 const SERVICE_INFO = {
     "Dental Check-up": {
         icon: "fa-tooth",
@@ -298,7 +351,10 @@ function proceedToBookService() {
     selectService(service);
 }
 
-/*ADMIN LOGIN*/
+
+/* ==========================================================================
+   7. ADMIN LOGIN
+   ========================================================================== */
 document.getElementById("loginForm").addEventListener("submit", e => {
     e.preventDefault();
     const user = document.getElementById("loginUsername").value.trim();
@@ -315,7 +371,10 @@ document.getElementById("loginForm").addEventListener("submit", e => {
     }
 });
 
-/*ADMIN NAVIGATION*/
+
+/* ==========================================================================
+   8. ADMIN NAVIGATION
+   ========================================================================== */
 const pageNames = {
     dashboard: "Dashboard",
     appointments: "Appointment Management",
@@ -373,10 +432,14 @@ function renderAll() {
     renderAppointmentPatients();
     renderPublicQueues();
     updateAdminNotifications();
+    updatePatientNotifications();
     if (currentAdminPage !== "forecast") renderForecastSummary();
 }
 
-/*MATERIAL STEPPER*/
+
+/* ==========================================================================
+   9. MATERIAL STEPPER
+   ========================================================================== */
 const MATERIAL_SCOPES = {
     appointment: { items: () => temporaryMaterialAdjustments, list: "predictionList", badge: "stockStatusBadge" },
     walkin:      { items: () => temporaryWalkinAdjustments,   list: "walkinPredictionList", badge: "walkinStockStatusBadge" },
@@ -460,7 +523,10 @@ function updateWalkinMaterialPrediction() {
     }
 }
 
-/*SCHEDULE VALIDATION*/
+
+/* ==========================================================================
+   10. SCHEDULE VALIDATION
+   ========================================================================== */
 const CLINIC_OPEN_MIN = 7 * 60;
 const CLINIC_CLOSE_MIN = 20 * 60;
 const LUNCH_START_MIN = 12 * 60;
@@ -544,7 +610,10 @@ function linkScheduleFields(dateId, timeId) {
     });
 }
 
-/*ADMIN: CREATE APPOINTMENT*/
+
+/* ==========================================================================
+   11. ADMIN: CREATE APPOINTMENT
+   ========================================================================== */
 function openAppointmentModal() {
     renderAppointmentPatients();
     document.getElementById("adminAppointmentDate").value = today();
@@ -611,7 +680,10 @@ if (adminForm) {
     });
 }
 
-/*ADMIN: EDIT APPOINTMENT*/
+
+/* ==========================================================================
+   12. ADMIN: EDIT APPOINTMENT
+   ========================================================================== */
 function openEditAppointmentModal(id) {
     const a = appointments.find(x => x.id === id);
     if (!a) return;
@@ -671,7 +743,10 @@ if (editAppointmentForm) {
     });
 }
 
-/*PATIENTS*/
+
+/* ==========================================================================
+   13. PATIENTS
+   ========================================================================== */
 document.getElementById("patientForm").addEventListener("submit", e => {
     e.preventDefault();
 
@@ -685,7 +760,7 @@ document.getElementById("patientForm").addEventListener("submit", e => {
         id: nextId("P", patients),
         name,
         contact: document.getElementById("patientContact").value.trim(),
-        dob: (document.getElementById("patientDOB") || document.getElementById("patientDate of birth")).value,
+        dob: document.getElementById("patientDOB").value,
         gender: document.getElementById("patientGender").value,
         address: document.getElementById("patientAddress").value.trim(),
         status: "Active"
@@ -739,7 +814,9 @@ function renderPatients() {
     const filter = searchInput ? searchInput.value.toLowerCase() : "";
 
     if (!patients.length) {
-        table.innerHTML = `<tr><td colspan="7">No patients registered.</td></tr>`;
+        selection.patient.clear();
+        table.innerHTML = `<tr><td colspan="8">No patients registered.</td></tr>`;
+        syncSelectionUI("patient");
         return;
     }
 
@@ -747,8 +824,12 @@ function renderPatients() {
         p.name.toLowerCase().includes(filter) || p.id.toLowerCase().includes(filter)
     );
 
+    // keep only selections that are still visible
+    selection.patient = new Set([...selection.patient].filter(id => filtered.some(p => p.id === id)));
+
     if (filtered.length === 0 && filter !== "") {
-        table.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#888;">No results found for "${esc(filter)}"</td></tr>`;
+        table.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#888;">No results found for "${esc(filter)}"</td></tr>`;
+        syncSelectionUI("patient");
         return;
     }
 
@@ -756,9 +837,14 @@ function renderPatients() {
         const concern = p.concern || "-";
         const isLong = concern.length > 40;
         const shortConcern = isLong ? concern.slice(0, 40).trim() + "…" : concern;
+        const checked = selection.patient.has(p.id);
 
         return `
-        <tr>
+        <tr class="${checked ? "row-selected" : ""}">
+            <td class="chk-col">
+                <input type="checkbox" class="row-check" ${checked ? "checked" : ""}
+                       onchange="toggleRowSelect('patient','${p.id}',this.checked)">
+            </td>
             <td>${p.id}</td>
             <td><strong>${esc(p.name)}</strong></td>
             <td>${esc(p.contact)}</td>
@@ -775,9 +861,14 @@ function renderPatients() {
             </td>
         </tr>`;
     }).join("");
+
+    syncSelectionUI("patient");
 }
 
-/*APPOINTMENT LIST*/
+
+/* ==========================================================================
+   14. APPOINTMENT LIST
+   ========================================================================== */
 function renderAppointments() {
     const table = document.getElementById("appointmentTable");
     if (!table) return;
@@ -786,7 +877,9 @@ function renderAppointments() {
     const filter = searchInput ? searchInput.value.toLowerCase() : "";
 
     if (!appointments.length) {
-        table.innerHTML = `<tr><td colspan="7">No appointments found.</td></tr>`;
+        selection.appointment.clear();
+        table.innerHTML = `<tr><td colspan="8">No appointments found.</td></tr>`;
+        syncSelectionUI("appointment");
         return;
     }
 
@@ -815,13 +908,21 @@ function renderAppointments() {
         return keyA.localeCompare(keyB);
     });
 
+    // keep only selections that are still visible
+    selection.appointment = new Set([...selection.appointment].filter(id => sorted.some(a => a.id === id)));
+
     const dailyCounters = {};
     table.innerHTML = sorted.map(a => {
         dailyCounters[a.date] = (dailyCounters[a.date] || 0) + 1;
         const displayNo = "APT" + String(dailyCounters[a.date]).padStart(3, "0");
+        const checked = selection.appointment.has(a.id);
 
         return `
-        <tr>
+        <tr class="${checked ? "row-selected" : ""}">
+            <td class="chk-col">
+                <input type="checkbox" class="row-check" ${checked ? "checked" : ""}
+                       onchange="toggleRowSelect('appointment','${a.id}',this.checked)">
+            </td>
             <td>${displayNo}</td>
             <td><strong>${esc(a.patientName)}</strong></td>
             <td>${formatDate(a.date)}</td>
@@ -836,13 +937,19 @@ function renderAppointments() {
                     }
                     <button class="action-btn warning" onclick="openEditAppointmentModal('${a.id}')">Edit</button>
                 ` : ""}
+
                 ${a.status === "Approved" ? `<button class="action-btn primary" onclick="openAdminPage('appointmentQueue')">Queue</button>` : ""}
             </td>
         </tr>`;
     }).join("");
+
+    syncSelectionUI("appointment");
 }
 
-/*PUBLIC BOOKING FORM*/
+
+/* ==========================================================================
+   15. PUBLIC BOOKING FORM
+   ========================================================================== */
 const publicForm = document.getElementById("appointmentForm");
 if (publicForm) {
     publicForm.addEventListener("submit", e => {
@@ -894,7 +1001,10 @@ if (publicForm) {
     });
 }
 
-/*APPROVE APPOINTMENT*/
+
+/* ==========================================================================
+   16. APPROVE APPOINTMENT
+   ========================================================================== */
 function approveAppointment(id) {
     openApproveDetailsModal(id);
 }
@@ -973,7 +1083,10 @@ function confirmApproveAppointment() {
     renderAll();
 }
 
-/*APPOINTMENT QUEUE*/
+
+/* ==========================================================================
+   17. APPOINTMENT QUEUE
+   ========================================================================== */
 function syncAppointmentQueue() {
     appointments.forEach(a => {
         let q = appointmentQueue.find(x => x.appointmentId === a.id);
@@ -1095,7 +1208,10 @@ function noShowAppointment(number) {
     renderAll();
 }
 
-/*WALK-IN QUEUE*/
+
+/* ==========================================================================
+   18. WALK-IN QUEUE
+   ========================================================================== */
 function renderWalkinPatients() {
     const select = document.getElementById("walkinPatient");
     if (!select) return;
@@ -1217,7 +1333,10 @@ function noShowWalkin(number) {
     renderAll();
 }
 
-/*DAILY SCHEDULE*/
+
+/* ==========================================================================
+   19. DAILY SCHEDULE
+   ========================================================================== */
 function renderSchedule() {
     const table = document.getElementById("scheduleTable");
     if (!table) return;
@@ -1248,7 +1367,10 @@ function renderSchedule() {
     `).join("");
 }
 
-/*INVENTORY*/
+
+/* ==========================================================================
+   20. INVENTORY PAGE
+   ========================================================================== */
 function renderInventory() {
     const table = document.getElementById("inventoryTable");
     if (!table) return;
@@ -1294,7 +1416,10 @@ function handleRestockUpdate(e) {
     return false;
 }
 
-/*RESTOCK FORECAST*/
+
+/* ==========================================================================
+   21. RESTOCK FORECAST
+   ========================================================================== */
 function getUpcoming(days = 30) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -1394,7 +1519,10 @@ function suggestRestock(name, stock, lead) {
     openAdminPage("inventory");
 }
 
-/*PUBLIC QUEUE STATUS*/
+
+/* ==========================================================================
+   22. PUBLIC QUEUE STATUS
+   ========================================================================== */
 function renderPublicQueues() {
     const aBox = document.getElementById("publicAppointmentQueue");
     const wBox = document.getElementById("publicWalkinQueue");
@@ -1416,7 +1544,10 @@ function renderPublicQueues() {
     ).join("") : `<div class="empty-state">No walk-in patients waiting.</div>`;
 }
 
-/*DASHBOARD*/
+
+/* ==========================================================================
+   23. DASHBOARD
+   ========================================================================== */
 function renderDashboardCharts() {
     const genderData = {
         Male: patients.filter(p => p.gender === "Male").length,
@@ -1497,7 +1628,8 @@ function renderDashboard() {
     renderDashboardCharts();
     renderDashboardExtras();
 }
-/*DASHBOARD EXTRAS (daily stats, trend line, upcoming list)*/
+
+/* ---------- Dashboard extras (daily stats, trend line, upcoming list) ---------- */
 let dailyApptChartInstance = null;
 let apptTrendChartInstance = null;
 let upcomingWeekStart = null;
@@ -1633,6 +1765,7 @@ function renderApptTrendChart() {
         plugins: [hoverLine]
     });
 }
+
 function renderUpcomingAppointments() {
     const strip = document.getElementById("upcomingStrip");
     const list = document.getElementById("upcomingList");
@@ -1701,7 +1834,11 @@ function renderDashboardExtras() {
         console.error("Dashboard extras failed:", err);
     }
 }
-/*REPORTS*/
+
+
+/* ==========================================================================
+   24. REPORTS
+   ========================================================================== */
 function inReportDateRange(dateStr) {
     const startEl = document.getElementById("reportStartDate");
     const endEl = document.getElementById("reportEndDate");
@@ -1968,7 +2105,10 @@ function printFilteredReport() {
     w.document.close();
 }
 
-/*CALENDAR*/
+
+/* ==========================================================================
+   25. CALENDAR
+   ========================================================================== */
 let advanceCalendar;
 
 function openAdvanceCalendar() {
@@ -2047,124 +2187,511 @@ function closeCalendarModal() {
     document.getElementById("calendarModal").classList.add("hidden");
 }
 
-/*NOTIFICATIONS*/
-function toggleNotifications(type) {
-    const box = type === "adminNotify"
-        ? document.getElementById("adminNotifyBox")
-        : document.getElementById("patientNotifyBox");
-    box.classList.toggle("hidden");
 
-    if (type === "adminNotify") updateAdminNotifications();
+
+/* ==========================================================================
+   26. NOTIFICATIONS  (public bell + admin bell)
+   --------------------------------------------------------------------------
+   Sections in this block:
+     1. Config & helpers
+     2. Panel open / close
+     3. Admin notifications
+     4. Patient (public) notifications
+   Markup for both bells lives in index.html (.nt-wrap).
+   Styles live in style.css under "NOTIFICATIONS".
+   ========================================================================== */
+
+/* ---------- 1. Config & helpers ---------- */
+const NT_ADMIN_READ_KEY = "pecana_admin_notif_read";
+const NT_LOOKUP_KEY     = "pecana_patient_lookup";
+const NT_SEEN_KEY       = "pecana_patient_seen";
+const NT_STEPS          = ["Requested", "Approved", "Serving", "Done"];
+
+let ntShownQuery = null; // query currently displayed in the patient panel
+
+const ntRead = (key, fallback) => {
+    try {
+        const v = JSON.parse(localStorage.getItem(key));
+        return v ?? fallback;
+    } catch {
+        return fallback;
+    }
+};
+const ntWrite      = (key, val) => localStorage.setItem(key, JSON.stringify(val));
+const ntPlural     = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const ntBadgeText  = n => (n > 9 ? "9+" : String(n));
+const ntDigits     = s => String(s || "").replace(/\D/g, "");
+const ntNormName   = s => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+const ntIsNumeric  = s => /^[\d\s+()-]+$/.test(s);
+
+function ntEmpty(icon, title, text) {
+    return `
+        <div class="nt-empty">
+            <div class="nt-empty-ico"><i class="fa-solid ${icon}"></i></div>
+            <strong>${esc(title)}</strong>
+            <p>${esc(text)}</p>
+        </div>`;
 }
 
-window.addEventListener("click", e => {
-    if (!e.target.closest(".notification-wrapper")) {
-        document.getElementById("adminNotifyBox").classList.add("hidden");
-        document.getElementById("patientNotifyBox").classList.add("hidden");
-    }
+/* ---------- 2. Panel open / close ---------- */
+function ntClosePanels() {
+    ["ntAdminBox", "ntPatientBox"].forEach(id =>
+        document.getElementById(id)?.classList.add("hidden"));
+    ["adminBell", "patientBell"].forEach(id =>
+        document.getElementById(id)?.setAttribute("aria-expanded", "false"));
+}
+
+function toggleNotifications(type) {
+    const isAdmin = type === "adminNotify";
+    const box  = document.getElementById(isAdmin ? "ntAdminBox" : "ntPatientBox");
+    const bell = document.getElementById(isAdmin ? "adminBell" : "patientBell");
+    if (!box) return;
+
+    const willOpen = box.classList.contains("hidden");
+    ntClosePanels();
+    if (!willOpen) return;
+
+    box.classList.remove("hidden");
+    bell?.setAttribute("aria-expanded", "true");
+    ntPositionPanels();
+
+    if (isAdmin) updateAdminNotifications();
+    else openPatientPanel();
+}
+
+/* On phones the panel is fixed to the screen; place it just under the bell
+   so it never covers the header or nav buttons, and cap its height. */
+function ntPositionPanels() {
+    [["ntAdminBox", "adminBell"], ["ntPatientBox", "patientBell"]].forEach(([boxId, bellId]) => {
+        const box  = document.getElementById(boxId);
+        const bell = document.getElementById(bellId);
+        if (!box || !bell || box.classList.contains("hidden")) return;
+
+        if (window.innerWidth <= 600) {
+            const top = Math.round(bell.getBoundingClientRect().bottom + 10);
+            box.style.top = top + "px";
+            box.style.maxHeight = Math.max(240, window.innerHeight - top - 12) + "px";
+        } else {
+            box.style.top = "";
+            box.style.maxHeight = "";
+        }
+    });
+}
+
+window.addEventListener("resize", ntPositionPanels);
+window.addEventListener("scroll", ntPositionPanels, { passive: true });
+
+document.addEventListener("click", e => {
+    if (!e.target.isConnected) return; // element was re-rendered during this click
+    if (!e.target.closest(".nt-wrap")) ntClosePanels();
 });
 
-function updateAdminNotifications() {
-    const list = document.getElementById("adminNotifyList");
-    const badge = document.getElementById("adminNotifyBadge");
-    let notifyCount = 0;
-    let html = "";
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") ntClosePanels();
+});
 
-    inventory.forEach(item => {
-        if (item.stock <= item.minimum) {
-            notifyCount++;
-            html += `
-                <div class="notify-item low-stock" onclick="openAdminPage('inventory'); toggleNotifications('adminNotify')">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <div class="notify-content">
-                        <b>Low Stock Alert</b>
-                        <p>${item.name} is low (${item.stock} left). Click to view inventory.</p>
-                    </div>
-                </div>`;
+/* ---------- 3. Admin notifications ---------- */
+function ntBuildAdminNotifications() {
+    const t = today();
+    const items = [];
+
+    /* Inventory: out of stock / low stock */
+    inventory.forEach(i => {
+        const lead = `Supplier lead time: ${ntPlural(i.leadTime, "day")}`;
+        if (i.stock <= 0) {
+            items.push({
+                key: `stock:${i.id}:${i.stock}`, group: "inventory", level: "critical", rank: 0,
+                icon: "fa-box-open", tag: "Out of stock", sort: i.name,
+                title: `${i.name} is out of stock`,
+                text: "Procedures that use this material can't be completed until it is restocked.",
+                meta: `Minimum level ${i.minimum}. ${lead}`,
+                page: "inventory"
+            });
+        } else if (i.stock <= i.minimum) {
+            items.push({
+                key: `stock:${i.id}:${i.stock}`, group: "inventory", level: "warning", rank: 1,
+                icon: "fa-triangle-exclamation", tag: "Low stock", sort: i.name,
+                title: `${i.name} is running low`,
+                text: `Only ${i.stock} left, at or below the minimum of ${i.minimum}.`,
+                meta: lead,
+                page: "inventory"
+            });
         }
     });
 
-    appointments.filter(a => a.status === "Pending").forEach(a => {
-        notifyCount++;
-        html += `
-            <div class="notify-item new-appt" onclick="openAdminPage('appointments'); toggleNotifications('adminNotify')">
-                <i class="fa-solid fa-calendar-plus"></i>
-                <div class="notify-content">
-                    <b>New Appointment Request</b>
-                    <p>${a.patientName} booked ${a.service} for ${formatDate(a.date)}. Click to manage.</p>
-                </div>
-            </div>`;
+    /* Inventory: projected shortage from upcoming appointments */
+    calculateForecast().forEach(f => {
+        if (!f.warning || f.stock <= f.minimum) return; // already covered above
+        items.push({
+            key: `fc:${f.id}:${f.projectedStock}`, group: "inventory", level: "warning", rank: 2,
+            icon: "fa-chart-line", tag: "Forecast", sort: f.name,
+            title: `${f.name} may run short`,
+            text: `Upcoming appointments need ${f.projectedUsage}. Projected stock drops to ${f.projectedStock}, below the minimum of ${f.minimum}.`,
+            meta: `Based on the next 30 days. Supplier lead time: ${ntPlural(f.leadTime, "day")}`,
+            page: "forecast"
+        });
     });
 
-    if (notifyCount === 0) {
-        html = '<p style="padding:20px; text-align:center; font-size:12px; color:#999;">No new notifications</p>';
-        badge.classList.add("hidden");
-    } else {
-        badge.classList.remove("hidden");
-        badge.textContent = notifyCount;
+    /* Appointments waiting for approval */
+    appointments
+        .filter(a => a.status === "Pending" && a.date >= t) // past-dated requests no longer show in the list
+        .forEach(a => {
+            const isToday = a.date === t;
+            items.push({
+                key: `appt:${a.id}:${a.date}:${a.time}`, group: "appointments",
+                level: isToday ? "warning" : "info", rank: isToday ? 1 : 3,
+                icon: isToday ? "fa-calendar-check" : "fa-calendar-plus",
+                tag: isToday ? "Needs approval" : "New request",
+                sort: `${a.date} ${a.time || "00:00"}`,
+                title: isToday
+                    ? `Approve ${a.patientName}'s visit`
+                    : `${a.patientName} requested an appointment`,
+                text: isToday
+                    ? `${a.service} today at ${formatTime(a.time)}. Approving adds the patient to the appointment queue.`
+                    : `${a.service} on ${formatDate(a.date)} at ${formatTime(a.time)}.`,
+                meta: isToday ? "Scheduled for today" : `Can be approved on ${formatDate(a.date)}`,
+                page: "appointments"
+            });
+        });
+
+    return items.sort((a, b) => a.rank - b.rank || a.sort.localeCompare(b.sort));
+}
+
+function updateAdminNotifications() {
+    const list  = document.getElementById("ntAdminList");
+    const badge = document.getElementById("ntAdminBadge");
+    const bell  = document.getElementById("adminBell");
+    const sub   = document.getElementById("ntAdminSub");
+    if (!list || !badge) return;
+
+    const items = ntBuildAdminNotifications();
+    const keys  = new Set(items.map(n => n.key));
+
+    // forget read marks for notifications that no longer exist
+    let read = new Set(ntRead(NT_ADMIN_READ_KEY, []));
+    const kept = [...read].filter(k => keys.has(k));
+    if (kept.length !== read.size) {
+        read = new Set(kept);
+        ntWrite(NT_ADMIN_READ_KEY, kept);
     }
 
-    list.innerHTML = html;
+    const unread = items.filter(n => !read.has(n.key)).length;
+
+    badge.textContent = ntBadgeText(unread);
+    badge.classList.toggle("hidden", unread === 0);
+    bell?.classList.toggle("has-unread", unread > 0);
+    bell?.setAttribute("aria-label", unread ? `Notifications, ${unread} unread` : "Notifications");
+    if (sub) sub.textContent = unread ? `${unread} unread` : "You're all caught up";
+
+    if (!items.length) {
+        list.innerHTML = ntEmpty("fa-circle-check", "Nothing needs attention",
+            "New appointment requests and stock alerts will show up here.");
+        return;
+    }
+
+    const groupLabels = { appointments: "Appointments", inventory: "Inventory and supplies" };
+    const groups = {};
+    items.forEach(n => (groups[n.group] ||= []).push(n));
+    const order = Object.keys(groups).sort((a, b) => groups[a][0].rank - groups[b][0].rank);
+
+    list.innerHTML = order.map(g => `
+        <div class="nt-section">${groupLabels[g] || g}<span>${groups[g].length}</span></div>
+        ${groups[g].map(n => `
+            <div class="nt-item nt-${n.level} ${read.has(n.key) ? "" : "unread"}"
+                 role="button" tabindex="0"
+                 data-key="${esc(n.key)}" data-page="${esc(n.page)}">
+                <div class="nt-ico"><i class="fa-solid ${n.icon}"></i></div>
+                <div class="nt-main">
+                    <span class="nt-tag">${esc(n.tag)}</span>
+                    <strong class="nt-title">${esc(n.title)}</strong>
+                    <p>${esc(n.text)}</p>
+                    <small>${esc(n.meta)}</small>
+                </div>
+                <span class="nt-dot"></span>
+            </div>`).join("")}
+    `).join("");
+}
+
+function ntOpenAdminItem(el) {
+    const read = new Set(ntRead(NT_ADMIN_READ_KEY, []));
+    read.add(el.dataset.key);
+    ntWrite(NT_ADMIN_READ_KEY, [...read]);
+    ntClosePanels();
+    updateAdminNotifications();
+    if (el.dataset.page) openAdminPage(el.dataset.page);
+}
+
+function markAllAdminNotificationsRead() {
+    ntWrite(NT_ADMIN_READ_KEY, ntBuildAdminNotifications().map(n => n.key));
+    updateAdminNotifications();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const list = document.getElementById("ntAdminList");
+    if (!list) return;
+    list.addEventListener("click", e => {
+        const item = e.target.closest(".nt-item");
+        if (item) ntOpenAdminItem(item);
+    });
+    list.addEventListener("keydown", e => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const item = e.target.closest(".nt-item");
+        if (item) { e.preventDefault(); ntOpenAdminItem(item); }
+    });
+});
+
+/* ---------- 4. Patient (public) notifications ---------- */
+
+/* Privacy: only an exact full contact number or exact full name matches. */
+function ntFindAppointments(query) {
+    const q = String(query || "").trim();
+    if (!q) return [];
+
+    let matched;
+    if (ntIsNumeric(q)) {
+        const d = ntDigits(q).slice(-10);
+        if (d.length < 10) return [];
+        matched = patients.filter(p => ntDigits(p.contact).slice(-10) === d);
+    } else {
+        const n = ntNormName(q);
+        matched = patients.filter(p => ntNormName(p.name) === n);
+    }
+
+    const ids = new Set(matched.map(p => p.id));
+    return appointments.filter(a => ids.has(a.patientId));
+}
+
+/* Position in the same list the public Queue Status page shows (A001, A002...) */
+function ntQueueInfo(a) {
+    const q = appointmentQueue.find(x => x.appointmentId === a.id);
+    if (!q) return null;
+    const active = appointmentQueue.filter(x =>
+        x.date === q.date && (x.status === "Waiting" || x.status === "Serving"));
+    const idx = active.findIndex(x => x.appointmentId === a.id);
+    if (idx < 0) return null;
+    return {
+        number: "A" + String(idx + 1).padStart(3, "0"),
+        ahead: idx,
+        serving: q.status === "Serving"
+    };
+}
+
+function ntSignature(a) {
+    const qi = a.status === "Approved" ? ntQueueInfo(a) : null;
+    return [a.status, a.queueStatus || "", a.date, a.time, qi ? qi.ahead : ""].join("|");
+}
+
+function ntDescribe(a) {
+    const t = today();
+    const when = `${formatDate(a.date)} at ${formatTime(a.time)}`;
+
+    if (a.status === "Pending") {
+        if (a.date < t) return {
+            tone: "muted", label: "Expired", step: -1,
+            text: "This request was not confirmed and its date has passed. Please book a new schedule."
+        };
+        if (a.date === t) return {
+            tone: "warning", label: "Pending", step: 0,
+            text: `Your request for today at ${formatTime(a.time)} is waiting for the clinic to confirm it.`
+        };
+        return {
+            tone: "warning", label: "Pending", step: 0,
+            text: `Request received. The clinic confirms appointments on the day of your visit (${formatDate(a.date)}).`
+        };
+    }
+
+    if (a.status === "Approved") {
+        const queue = ntQueueInfo(a);
+        if (queue && queue.serving) return {
+            tone: "serving", label: "Now serving", step: 2, queue,
+            text: "It's your turn. Please proceed to the dental chair."
+        };
+        if (queue) return {
+            tone: "success", label: "Approved", step: 1, queue,
+            text: "Your appointment is confirmed. Please stay nearby and wait for your number."
+        };
+        return {
+            tone: "success", label: "Approved", step: 1,
+            text: `Your appointment is confirmed for ${when}. Please arrive on time.`
+        };
+    }
+
+    if (a.status === "Completed") return {
+        tone: "success", label: "Completed", step: 4,
+        text: `Your visit on ${formatDate(a.date)} is complete. Thank you for choosing Pecaña Dental Clinic.`
+    };
+
+    if (a.status === "No-show") return {
+        tone: "danger", label: "Missed", step: -1,
+        text: "This appointment was marked as missed. Please book a new schedule if you still need care."
+    };
+
+    return { tone: "muted", label: esc(a.status || "Unknown"), step: -1, text: `Scheduled for ${when}.` };
+}
+
+function ntPatientCard(a, updated) {
+    const d = ntDescribe(a);
+    const isActive = a.status === "Pending" || a.status === "Approved";
+
+    const queue = d.queue ? `
+        <div class="nt-queue">
+            <div class="nt-qnum">${d.queue.number}</div>
+            <div class="nt-qtext">
+                <strong>${d.queue.serving ? "Now serving" : d.queue.ahead === 0 ? "You're next" : `${ntPlural(d.queue.ahead, "patient")} ahead of you`}</strong>
+                <span>Appointment queue for ${esc(formatDate(a.date))}</span>
+            </div>
+        </div>` : "";
+
+    const resched = a.rescheduled && isActive ? `
+        <div class="reschedule-alert">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>The clinic updated your schedule. Your appointment is now on ${esc(formatDate(a.date))} at ${esc(formatTime(a.time))}.</span>
+        </div>` : "";
+
+    const steps = d.step >= 0 ? `
+        <ol class="nt-steps">
+            ${NT_STEPS.map((s, i) => `<li class="${i < d.step ? "done" : i === d.step ? "current" : ""}">${s}</li>`).join("")}
+        </ol>` : "";
+
+    return `
+        <article class="nt-card nt-t-${d.tone}">
+            <div class="nt-card-top">
+                <span class="nt-pill nt-t-${d.tone}">${d.label}</span>
+                ${updated ? `<span class="nt-new">Updated</span>` : ""}
+            </div>
+            <h4>${esc(a.service)}</h4>
+            <div class="nt-when">
+                <span><i class="fa-regular fa-calendar"></i> ${esc(formatDate(a.date))}</span>
+                <span><i class="fa-regular fa-clock"></i> ${esc(formatTime(a.time))}</span>
+            </div>
+            <p class="nt-msg">${esc(d.text)}</p>
+            ${queue}
+            ${resched}
+            ${steps}
+            <small class="nt-for">Booked for ${esc(a.patientName)}</small>
+        </article>`;
+}
+
+/* Renders results and marks them as seen. Returns how many were found. */
+function ntRenderPatientResults(query) {
+    const list = document.getElementById("ntPatientList");
+    if (!list) return 0;
+
+    ntShownQuery = query;
+    const appts = ntFindAppointments(query);
+
+    if (!appts.length) {
+        list.innerHTML = ntEmpty("fa-folder-open", "No appointment found",
+            "Enter your complete contact number or your full name exactly as you gave it when booking.");
+        return 0;
+    }
+
+    const isActive = a => a.status === "Pending" || a.status === "Approved";
+    const key = a => `${a.date} ${a.time || "00:00"}`;
+    const sorted = [...appts].sort((a, b) => {
+        if (isActive(a) !== isActive(b)) return isActive(a) ? -1 : 1;
+        return isActive(a) ? key(a).localeCompare(key(b)) : key(b).localeCompare(key(a));
+    });
+
+    const LIMIT = 6;
+    const shown = sorted.slice(0, LIMIT);
+    const seen = ntRead(NT_SEEN_KEY, {});
+
+    list.innerHTML = `
+        <div class="nt-results-head">
+            <span>${ntPlural(appts.length, "appointment")} found</span>
+            <button type="button" class="nt-clear" onclick="ntClearLookup()">Clear</button>
+        </div>
+        ${shown.map(a => ntPatientCard(a, seen[a.id] !== undefined && seen[a.id] !== ntSignature(a))).join("")}
+        ${appts.length > LIMIT ? `<div class="nt-more">Showing the latest ${LIMIT}. Contact the clinic for older records.</div>` : ""}`;
+
+    appts.forEach(a => { seen[a.id] = ntSignature(a); });
+    ntWrite(NT_SEEN_KEY, seen);
+    return appts.length;
+}
+
+function ntShowPatientHint(title, text, icon = "fa-calendar-check") {
+    ntShownQuery = null;
+    const list = document.getElementById("ntPatientList");
+    if (list) list.innerHTML = ntEmpty(icon, title, text);
+}
+
+function openPatientPanel() {
+    const input = document.getElementById("ntPatientSearch");
+    const saved = localStorage.getItem(NT_LOOKUP_KEY);
+
+    if (saved) {
+        if (input && !input.value) input.value = saved;
+        ntRenderPatientResults(saved);
+    } else {
+        ntShowPatientHint("Check your appointment",
+            "Enter the contact number or full name you booked with to see your status and queue position.");
+    }
+    updatePatientNotifications();
+    setTimeout(() => input?.focus(), 60);
 }
 
 function checkPatientNotifications() {
-    const searchVal = document.getElementById("patientNotifySearch").value.trim();
-    const list = document.getElementById("patientNotifyList");
+    const input = document.getElementById("ntPatientSearch");
+    const q = (input?.value || "").trim();
 
-    if (!searchVal) {
-        alert("Please enter your contact number or name.");
+    if (!q) {
+        ntShowPatientHint("Enter your details",
+            "Type your complete contact number or your full name to look up your appointment.", "fa-keyboard");
+        input?.focus();
         return;
     }
 
-    list.style.display = "block";
-
-    const searchLower = searchVal.toLowerCase();
-    const patientIds = patients
-        .filter(p => p.contact === searchVal || p.name.toLowerCase().includes(searchLower))
-        .map(p => p.id);
-    const myAppts = appointments.filter(a => patientIds.includes(a.patientId));
-
-    if (myAppts.length === 0) {
-        list.innerHTML = '<p style="padding:20px; text-align:center; font-size:12px; color:#999;">No records found for this number or name.</p>';
+    if (ntIsNumeric(q) && ntDigits(q).length < 10) {
+        ntShowPatientHint("Contact number is incomplete",
+            "Please enter your complete contact number, for example 09171234567.", "fa-mobile-screen");
         return;
     }
 
-    const activeStatuses = ["Pending", "Approved"];
-    const sortedAppts = [...myAppts].sort((a, b) => {
-        const aActive = activeStatuses.includes(a.status);
-        const bActive = activeStatuses.includes(b.status);
-        if (aActive !== bActive) return aActive ? -1 : 1;
-
-        const keyA = `${a.date} ${a.time || "00:00"}`;
-        const keyB = `${b.date} ${b.time || "00:00"}`;
-        return aActive ? keyA.localeCompare(keyB) : keyB.localeCompare(keyA);
-    });
-
-    list.innerHTML = sortedAppts.map(a => {
-        const statusIcon = a.status === "Approved" ? "fa-circle-check" : "fa-clock";
-        const rowClass = a.status === "Approved" ? "approved" : "";
-
-        return `
-            <div class="notify-item ${rowClass} ${a.rescheduled ? "rescheduled" : ""}" onclick="showPublicPage('queue-status'); toggleNotifications('patientNotify')">
-                <i class="fa-solid ${statusIcon}"></i>
-                <div class="notify-content">
-                    <b>Appointment Status: ${a.status}</b>
-                    <p>Service: ${a.service}</p>
-                    <p>Schedule: ${formatDate(a.date)}</p>
-                    <p>Time: ${formatTime(a.time)}</p>
-                    ${a.rescheduled ? `
-                        <div class="reschedule-alert">
-                            <i class="fa-solid fa-clock-rotate-left"></i>
-                            <span>The clinic updated this appointment's schedule. Please note the new date and time above.</span>
-                        </div>
-                    ` : ""}
-                    <small style="color:var(--purple2);">Click to view Queue Status →</small>
-                </div>
-            </div>`;
-    }).join("");
+    const count = ntRenderPatientResults(q);
+    if (count) localStorage.setItem(NT_LOOKUP_KEY, q);
+    updatePatientNotifications();
 }
 
-/*WELCOME SPLASH*/
+function ntClearLookup() {
+    localStorage.removeItem(NT_LOOKUP_KEY);
+    localStorage.removeItem(NT_SEEN_KEY);
+    const input = document.getElementById("ntPatientSearch");
+    if (input) input.value = "";
+    ntShowPatientHint("Check your appointment",
+        "Enter the contact number or full name you booked with to see your status and queue position.");
+    updatePatientNotifications();
+}
+
+/* Called from renderAll(): keeps the badge and an open panel in sync. */
+function updatePatientNotifications() {
+    const badge = document.getElementById("ntPatientBadge");
+    const bell  = document.getElementById("patientBell");
+    const box   = document.getElementById("ntPatientBox");
+    if (!badge) return;
+
+    const saved = localStorage.getItem(NT_LOOKUP_KEY);
+    const isOpen = box && !box.classList.contains("hidden");
+
+    // live refresh while the panel is open
+    if (isOpen && ntShownQuery) ntRenderPatientResults(ntShownQuery);
+
+    let changed = 0;
+    if (saved && !isOpen) {
+        const seen = ntRead(NT_SEEN_KEY, {});
+        changed = ntFindAppointments(saved).filter(a => seen[a.id] !== ntSignature(a)).length;
+    }
+
+    badge.textContent = ntBadgeText(changed);
+    badge.classList.toggle("hidden", changed === 0);
+    bell?.classList.toggle("has-unread", changed > 0);
+    bell?.setAttribute("aria-label", changed ? `Appointment updates, ${changed} new` : "Appointment status");
+}
+
+
+/* ==========================================================================
+   27. WELCOME SPLASH
+   ========================================================================== */
 window.closeWelcomeSplash = function () {
     sessionStorage.setItem("pecana_entered", "true");
     const welcomeSplash = document.getElementById("welcomeSplash");
@@ -2211,8 +2738,282 @@ window.closeWelcomeSplash = function () {
         }
     });
 })();
+/* ==========================================================================
+   MULTI-SELECT + DELETE FEATURE
+   Checkbox / row-click / shift-click selection, floating action bar,
+   confirm dialog and Undo. Used by Appointment Management + Patient Records.
+   ========================================================================== */
 
-/*INITIALIZATION*/
+const selection  = { appointment: new Set(), patient: new Set() };
+const lastPicked = { appointment: null, patient: null };
+
+const SELECT_CFG = {
+    appointment: { bar: "apptBulkBar",    count: "apptBulkCount",    allBtn: "apptBulkAll",    all: "apptSelectAll",    body: "appointmentTable" },
+    patient:     { bar: "patientBulkBar", count: "patientBulkCount", allBtn: "patientBulkAll", all: "patientSelectAll", body: "patientTable" }
+};
+
+/* The row id lives in the checkbox's onchange attribute */
+const rowIdOf = cb => (cb.getAttribute("onchange") || "").match(/'[^']+'\s*,\s*'([^']+)'/)?.[1] || null;
+
+function setSelected(type, id, on) {
+    if (!id) return;
+    if (on) selection[type].add(id);
+    else selection[type].delete(id);
+}
+
+/* Refresh floating bar, header checkbox and row highlights */
+function syncSelectionUI(type) {
+    const cfg  = SELECT_CFG[type];
+    const set  = selection[type];
+    const body = document.getElementById(cfg.body);
+    if (!body) return;
+
+    const boxes = body.querySelectorAll(".row-check");
+    const total = boxes.length;
+
+    boxes.forEach(b => b.closest("tr")?.classList.toggle("row-selected", b.checked));
+
+    const all = document.getElementById(cfg.all);
+    if (all) {
+        all.checked = total > 0 && set.size === total;
+        all.indeterminate = set.size > 0 && set.size < total;
+    }
+
+    document.getElementById(cfg.bar)?.classList.toggle("hidden", set.size === 0);
+
+    const count = document.getElementById(cfg.count);
+    if (count) count.textContent = set.size;
+
+    const allBtn = document.getElementById(cfg.allBtn);
+    if (allBtn) {
+        allBtn.textContent = `Select all ${total}`;
+        allBtn.classList.toggle("hidden", set.size >= total);
+    }
+}
+
+function toggleRowSelect(type, id, checked) {
+    setSelected(type, id, checked);
+    syncSelectionUI(type);
+}
+
+function toggleSelectAll(type, checked) {
+    document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`).forEach(b => {
+        b.checked = checked;
+        setSelected(type, rowIdOf(b), checked);
+    });
+    syncSelectionUI(type);
+}
+
+function clearSelection(type) {
+    selection[type].clear();
+    lastPicked[type] = null;
+    document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`).forEach(b => { b.checked = false; });
+    syncSelectionUI(type);
+}
+
+/* Select one row, or a whole range when Shift is held */
+function pickRow(type, cb, shift) {
+    const boxes = [...document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`)];
+    const idx   = boxes.indexOf(cb);
+    const want  = cb.checked;
+
+    if (shift && lastPicked[type] !== null && boxes[lastPicked[type]]) {
+        const [from, to] = [lastPicked[type], idx].sort((a, b) => a - b);
+        for (let i = from; i <= to; i++) {
+            boxes[i].checked = want;
+            setSelected(type, rowIdOf(boxes[i]), want);
+        }
+    } else {
+        setSelected(type, rowIdOf(cb), want);
+    }
+
+    lastPicked[type] = idx;
+    syncSelectionUI(type);
+}
+
+/* Click a checkbox, or anywhere on a row (except buttons/links), to select */
+Object.entries(SELECT_CFG).forEach(([type, cfg]) => {
+    const body = document.getElementById(cfg.body);
+    if (!body) return;
+
+    body.addEventListener("mousedown", e => { if (e.shiftKey) e.preventDefault(); }); // no text highlight on shift+click
+
+    body.addEventListener("click", e => {
+        const direct = e.target.closest(".row-check");
+        if (direct) { pickRow(type, direct, e.shiftKey); return; }
+
+        if (e.target.closest("button, a, input, label, select")) return;
+        if (String(window.getSelection?.() || "").length) return; // user is highlighting text
+
+        const cb = e.target.closest("tr")?.querySelector(".row-check");
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        pickRow(type, cb, e.shiftKey);
+    });
+});
+
+/* Esc: close the dialog first, otherwise clear the selection */
+document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    const modal = document.getElementById("deleteConfirmModal");
+    if (modal && !modal.classList.contains("hidden")) { closeDeleteConfirm(); return; }
+    clearSelection("appointment");
+    clearSelection("patient");
+});
+
+/* ---------- Confirm dialog ---------- */
+let pendingDelete = null; // { type: "patient" | "appointment", ids: [...] }
+
+function requestBulkDelete(type) {
+    const ids = [...selection[type]];
+    if (!ids.length) return;
+
+    pendingDelete = { type, ids };
+    const idSet = new Set(ids);
+    const n = ids.length;
+
+    const title = document.getElementById("deleteConfirmTitle");
+    const text  = document.getElementById("deleteConfirmText");
+    const list  = document.getElementById("deleteConfirmList");
+    const label = document.getElementById("deleteConfirmBtnLabel");
+    const undoNote = `<span class="delete-note muted">You can undo this right after deleting.</span>`;
+
+    if (type === "patient") {
+        const rows = patients.filter(p => idSet.has(p.id));
+        const active = appointments.filter(a =>
+            idSet.has(a.patientId) && (a.status === "Pending" || a.status === "Approved")).length;
+
+        title.textContent = n === 1 ? "Delete this patient?" : `Delete ${n} patients?`;
+        label.textContent = n === 1 ? "Delete patient" : `Delete ${n} patients`;
+        text.innerHTML =
+            `This will remove ${n === 1 ? "the patient" : `<strong>${n} patients</strong>`} from the clinic records.` +
+            (active ? `<span class="delete-note">Their ${active} pending/approved appointment${active === 1 ? "" : "s"} and queue entries will also be removed.</span>` : "") +
+            `<span class="delete-note">Completed and no-show history is kept for reports.</span>` + undoNote;
+        list.innerHTML = rows.map(p =>
+            `<li><span class="delete-li-main">${esc(p.name)}</span><span class="delete-li-sub">${esc(p.id)}</span></li>`).join("");
+    } else {
+        const rows = appointments.filter(a => idSet.has(a.id));
+
+        title.textContent = n === 1 ? "Delete this appointment?" : `Delete ${n} appointments?`;
+        label.textContent = n === 1 ? "Delete appointment" : `Delete ${n} appointments`;
+        text.innerHTML =
+            `This will remove ${n === 1 ? "the appointment" : `<strong>${n} appointments</strong>`} and take ${n === 1 ? "it" : "them"} out of the queue.` +
+            undoNote;
+        list.innerHTML = rows.map(a =>
+            `<li><span class="delete-li-main">${esc(a.patientName)}</span>` +
+            `<span class="delete-li-sub">${esc(formatDate(a.date))} · ${esc(formatTime(a.time))} · ${esc(a.service)}</span></li>`).join("");
+    }
+
+    document.getElementById("deleteConfirmModal").classList.remove("hidden");
+    // safe default: focus Cancel so a stray Enter never deletes
+    setTimeout(() => document.querySelector("#deleteConfirmModal .btn-outline")?.focus(), 30);
+}
+
+function closeDeleteConfirm() {
+    document.getElementById("deleteConfirmModal").classList.add("hidden");
+    pendingDelete = null;
+}
+
+/* click on the dark backdrop closes the dialog */
+document.getElementById("deleteConfirmModal")?.addEventListener("click", e => {
+    if (e.target.id === "deleteConfirmModal") closeDeleteConfirm();
+});
+
+function confirmDelete() {
+    if (!pendingDelete) { closeDeleteConfirm(); return; }
+    const { type, ids } = pendingDelete;
+    const idSet = new Set(ids);
+    const n = ids.length;
+
+    // snapshot for Undo
+    undoSnapshot = {
+        patients:         JSON.parse(JSON.stringify(patients)),
+        appointments:     JSON.parse(JSON.stringify(appointments)),
+        appointmentQueue: JSON.parse(JSON.stringify(appointmentQueue)),
+        walkins:          JSON.parse(JSON.stringify(walkins))
+    };
+
+    if (type === "patient") {
+        const isActiveAppt = a => idSet.has(a.patientId) && (a.status === "Pending" || a.status === "Approved");
+        const removedApptIds = new Set(appointments.filter(isActiveAppt).map(a => a.id));
+
+        patients         = patients.filter(p => !idSet.has(p.id));
+        appointments     = appointments.filter(a => !removedApptIds.has(a.id));
+        appointmentQueue = appointmentQueue.filter(q => !removedApptIds.has(q.appointmentId));
+        walkins          = walkins.filter(w => !(idSet.has(w.patientId) && (w.status === "Waiting" || w.status === "Serving")));
+
+        save(STORAGE.patients, patients);
+        save(STORAGE.appointments, appointments);
+        save(STORAGE.appointmentQueue, appointmentQueue);
+        save(STORAGE.walkins, walkins);
+    }
+
+    if (type === "appointment") {
+        appointments     = appointments.filter(a => !idSet.has(a.id));
+        appointmentQueue = appointmentQueue.filter(q => !idSet.has(q.appointmentId));
+
+        save(STORAGE.appointments, appointments);
+        save(STORAGE.appointmentQueue, appointmentQueue);
+    }
+
+    selection[type].clear();
+    lastPicked[type] = null;
+    closeDeleteConfirm();
+    renderAll();
+
+    const noun = type === "patient" ? "patient" : "appointment";
+    showUndoToast(`${n} ${noun}${n === 1 ? "" : "s"} deleted`);
+}
+
+/* ---------- Undo toast ---------- */
+let undoSnapshot = null;
+let undoTimer = null;
+
+function showUndoToast(message) {
+    let t = document.getElementById("undoToast");
+    if (!t) {
+        t = document.createElement("div");
+        t.id = "undoToast";
+        t.className = "undo-toast";
+        document.body.appendChild(t);
+    }
+    t.innerHTML = `
+        <i class="fa-solid fa-circle-check"></i>
+        <span>${esc(message)}</span>
+        <button type="button" class="undo-btn" onclick="undoDelete()">Undo</button>
+        <button type="button" class="undo-x" aria-label="Dismiss" onclick="hideUndoToast()"><i class="fa-solid fa-xmark"></i></button>`;
+    requestAnimationFrame(() => t.classList.add("show"));
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(hideUndoToast, 8000);
+}
+
+function hideUndoToast() {
+    document.getElementById("undoToast")?.classList.remove("show");
+    clearTimeout(undoTimer);
+    undoSnapshot = null;
+}
+
+function undoDelete() {
+    const snap = undoSnapshot;
+    if (!snap) return;
+
+    patients         = snap.patients;
+    appointments     = snap.appointments;
+    appointmentQueue = snap.appointmentQueue;
+    walkins          = snap.walkins;
+
+    save(STORAGE.patients, patients);
+    save(STORAGE.appointments, appointments);
+    save(STORAGE.appointmentQueue, appointmentQueue);
+    save(STORAGE.walkins, walkins);
+
+    hideUndoToast();
+    renderAll();
+}
+
+/* ==========================================================================
+   28. INITIALIZATION
+   ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
     syncAppointmentQueue();
     renderAll();
