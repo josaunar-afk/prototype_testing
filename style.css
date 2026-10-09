@@ -1,21 +1,3 @@
-/* ==========================================================================
-   PECAÑA DENTAL CLINIC MANAGEMENT SYSTEM  -  style.css
-   --------------------------------------------------------------------------
-   Rule order matters (later rules refine earlier ones), so sections are kept
-   in the order they were written. Ctrl+F the section name to jump.
-   ==========================================================================
-   ORIGINAL BASE
-     Base & variables · Public header · Hero · Services · Forms · Queue ·
-     Login · Admin shell · Dashboard · Tables · Badges · Modals · Responsive
-   ADDITIONS & REFINEMENTS
-     Dashboard charts · Insight cards · Report cards · Print · Calendar ·
-     Prediction items · Search bar · Visual refresh · Welcome splash ·
-     Loading splash · Services grid · Reports toolbar · Reschedule alert ·
-     Service details modal · Service cards · Design tokens · Dashboard
-     analytics
-   NOTIFICATIONS (last)
-   ========================================================================== */
-
 *{box-sizing:border-box;margin:0;padding:0}
 
 :root{
@@ -363,8 +345,6 @@ textarea{
     padding:10px;
 }
 
-/* ---------- Admin shell ---------- */
-
 .admin-app{
     min-height:100vh;
     background:var(--bg);
@@ -480,15 +460,13 @@ textarea{
 
 .admin-user i{color:var(--purple2)}
 
-/* Admin header: bell + user (the bell itself is styled in NOTIFICATIONS) */
+/* Admin header: bell + user */
 .admin-user-wrapper {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
     gap: 20px;
 }
-
-/* Calendar button */
 .calendar-trigger-btn {
     background: var(--purple);
     color: white;
@@ -870,9 +848,6 @@ tr:hover td{background:#fcf9fd}
     color:var(--purple2);
     font-size:.75rem;
 }
-
-/* ---------- Responsive (base) ---------- */
-
 @media(max-width:1100px){
     .dashboard-cards{grid-template-columns:repeat(3,1fr)}
     .service-grid{grid-template-columns:repeat(2,1fr)}
@@ -950,7 +925,7 @@ tr:hover td{background:#fcf9fd}
     .admin-user{align-self:flex-start}
 }
 
-/* ---------- Dashboard charts ---------- */
+/*Dashboard charts */
 .dashboard-charts {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -995,7 +970,7 @@ tr:hover td{background:#fcf9fd}
     }
 }
 
-/* ---------- Insight cards ---------- */
+/*Insight cards */
 .insight-card {
     grid-column: 1 / -1;
     background: #ffffff;
@@ -1101,8 +1076,6 @@ tr:hover td{background:#fcf9fd}
     min-width: 20px;
     text-align: center;
 }
-
-/* ---------- Report cards ---------- */
 .report-card {
     position: relative;
     overflow: hidden;
@@ -1126,8 +1099,6 @@ tr:hover td{background:#fcf9fd}
 .purple-border { border-top: 4px solid var(--purple2); }
 .green-border { border-top: 4px solid var(--green); }
 .red-border { border-top: 4px solid var(--red); }
-
-/* ---------- Print ---------- */
 @media print {
     .sidebar, .admin-header, .page-actions button, .side-link {
         display: none !important;
@@ -1141,10 +1112,6 @@ tr:hover td{background:#fcf9fd}
         border: 1px solid #ddd;
     }
 }
-
-/* ---------- Calendar ---------- */
-
-/* Schedule page actions */
 #page-schedule .page-actions {
     display: flex;
     justify-content: space-between;
@@ -1153,8 +1120,6 @@ tr:hover td{background:#fcf9fd}
     padding-bottom: 15px;
     margin-bottom: 20px;
 }
-
-/* Calendar modal */
 #calendarModal .modal-card {
     width: min(1100px, 95%) !important;
     max-height: 90vh;
@@ -1178,16 +1143,12 @@ tr:hover td{background:#fcf9fd}
     font-size: 1.4rem;
     font-weight: 700;
 }
-
-/* Calendar container */
 #calendar {
     padding: 20px;
     background: white;
     flex: 1;
     overflow-y: auto;
 }
-
-/* FullCalendar theme */
 .fc .fc-button-primary {
     background-color: var(--purple) !important;
     border: none !important;
@@ -1218,10 +1179,6 @@ tr:hover td{background:#fcf9fd}
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-
-/* ---------- Prediction items ---------- */
-
-/* Prediction row */
 .prediction-item {
     display: flex;
     justify-content: space-between;
@@ -1232,8 +1189,6 @@ tr:hover td{background:#fcf9fd}
     margin-bottom: 8px;
     border: 1px solid #f1f5f9;
 }
-
-/* Item controls */
 .item-controls {
     display: flex;
     align-items: center;
@@ -1243,8 +1198,6 @@ tr:hover td{background:#fcf9fd}
     border-radius: 8px;
     border: 1px solid #e2e8f0;
 }
-
-/* Quantity buttons */
 .qty-btn {
     width: 26px;
     height: 26px;
@@ -1259,13 +1212,9 @@ tr:hover td{background:#fcf9fd}
     font-size: 16px;
     transition: opacity 0.2s;
 }
-
-/* Quantity button colors */
 .qty-btn.minus { background-color: var(--red); }
 .qty-btn.plus { background-color: var(--green); }
 .qty-btn:hover { opacity: 0.85; }
-
-/* Quantity badge */
 .qty-value {
     background-color: #f3e5f5;
     color: var(--purple2);
@@ -1277,7 +1226,6 @@ tr:hover td{background:#fcf9fd}
     text-align: center;
 }
 
-/* Insight badge */
 .insight-badge.success {
     background-color: #e8f5e9 !important;
     color: var(--green) !important;
@@ -1294,7 +1242,6 @@ tr:hover td{background:#fcf9fd}
     font-size: 0.9rem;
 }
 
-/* ---------- Public nav alignment ---------- */
 .public-header nav {
     display: flex !important;
     align-items: center !important;
@@ -1302,7 +1249,6 @@ tr:hover td{background:#fcf9fd}
     height: 100%;
 }
 
-/* ---------- Search bar ---------- */
 .search-wrapper {
     position: relative;
     display: flex;
@@ -1344,11 +1290,7 @@ tr:hover td{background:#fcf9fd}
     border-radius: 8px;
 }
 
-/* ==========================================================================
-   VISUAL REFRESH
-   ========================================================================== */
-
-/* Typography */
+/*VISUAL REFRESH*/
 body{
     font-family:'Inter','Segoe UI',Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -1494,7 +1436,6 @@ h1,h2,h3,
     border:1px solid rgba(15,15,20,.05);
 }
 
-/* Service cards */
 .service-card {
     text-align: center;
 }
@@ -1528,7 +1469,6 @@ h1,h2,h3,
     border-top:4px solid var(--purple2);
 }
 
-/* Sidebar */
 .sidebar{
     background:linear-gradient(180deg,var(--purple) 0%,#4a0954 100%);
     box-shadow:2px 0 14px rgba(0,0,0,.12);
@@ -1548,7 +1488,6 @@ h1,h2,h3,
     font-weight:600;
 }
 
-/* Admin header */
 .admin-header h1{
     font-weight:700;
     letter-spacing:-0.3px;
@@ -1560,7 +1499,6 @@ h1,h2,h3,
     font-size:.85rem;
 }
 
-/* Tables */
 th{
     font-weight:700;
     letter-spacing:.3px;
@@ -1574,7 +1512,6 @@ tr:hover td{
     background:#faf3fb;
 }
 
-/* Badges */
 .badge{
     letter-spacing:.2px;
     display:inline-flex;
@@ -1591,7 +1528,6 @@ tr:hover td{
     display:inline-block;
 }
 
-/* Login page */
 .login-page{
     background:
         radial-gradient(circle at 15% 20%, rgba(255,255,255,.08), transparent 40%),
@@ -1607,7 +1543,6 @@ tr:hover td{
     font-weight:700;
 }
 
-/* Modals */
 .modal{
     backdrop-filter:blur(2px);
 }
@@ -1623,7 +1558,6 @@ tr:hover td{
     color:var(--purple);
 }
 
-/* Forms */
 input,select,textarea{
     transition:border-color .18s ease, box-shadow .18s ease;
 }
@@ -1634,7 +1568,6 @@ input:focus,select:focus,textarea:focus{
     box-shadow:0 0 0 3px rgba(120,19,138,.12);
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar{
     width:10px;
     height:10px;
@@ -1653,7 +1586,6 @@ input:focus,select:focus,textarea:focus{
     background:var(--purple2);
 }
 
-/* Section title accent */
 .section-title span,
 .public-title span{
     position:relative;
@@ -1663,7 +1595,6 @@ input:focus,select:focus,textarea:focus{
     height: 200px;
 }
 
-/* Empty states */
 .empty-state{
     border:1px dashed #e6d5ea;
 }
@@ -1694,7 +1625,6 @@ input:focus,select:focus,textarea:focus{
     line-height: 1.3;
 }
 
-/* Stockout tags */
 .stockout-tag{
     display: inline-block;
     font-size: .78rem;
@@ -1716,9 +1646,7 @@ input:focus,select:focus,textarea:focus{
     color: var(--green);
 }
 
-/* ==========================================================================
-   WELCOME SPLASH
-   ========================================================================== */
+/*WELCOME SPLASH*/
 .welcome-splash{
     position:fixed;
     inset:0;
@@ -1834,9 +1762,7 @@ input:focus,select:focus,textarea:focus{
     .welcome-splash-content p{font-size:.88rem;}
 }
 
-/* ==========================================================================
-   LOADING SPLASH
-   ========================================================================== */
+/*LOADING SPLASH*/
 .logo-only-splash{
     position:fixed;
     top:0;
@@ -1866,9 +1792,7 @@ input:focus,select:focus,textarea:focus{
     height:auto;
 }
 
-/* ==========================================================================
-   SERVICES GRID
-   ========================================================================== */
+/*SERVICES GRID*/
 .service-grid.large {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1888,7 +1812,6 @@ input:focus,select:focus,textarea:focus{
     flex: 1;
 }
 
-/* Last service card */
 .service-grid.large .service-card:last-child {
     grid-column: 1;
 }
@@ -1922,7 +1845,6 @@ input:focus,select:focus,textarea:focus{
     }
 }
 
-/* Sticky header offset */
 .public-page{
     scroll-margin-top:90px;
 }
@@ -1931,9 +1853,7 @@ html{
     scroll-behavior:auto;
 }
 
-/* ==========================================================================
-   REPORTS TOOLBAR
-   ========================================================================== */
+/*REPORTS TOOLBAR*/
 .page-actions{
     border-bottom:1px solid #ece4ee;
     padding-bottom:16px;
@@ -2019,7 +1939,6 @@ html{
     .filter-actions button{flex:1;}
 }
 
-/* Inputs */
 input,select,textarea{
     border:1px solid #ddd4e0;
     background:#fff;
@@ -2035,7 +1954,6 @@ select{
     cursor:pointer;
 }
 
-/* Buttons */
 .btn-primary,
 .btn-outline{
     transform:none !important;
@@ -2057,7 +1975,6 @@ select{
     filter:brightness(1.06);
 }
 
-/* Stat and report cards */
 .report-card i,
 .stat-card i{
     opacity:.09;
@@ -2142,13 +2059,11 @@ tr:hover td{
     padding:0 18px;
 }
 
-/* Empty states */
 .empty-state{
     background:#fbf8fc;
     border:1px dashed #ddc7e4;
 }
 
-/* Focus */
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -2158,9 +2073,7 @@ textarea:focus-visible,
     outline-offset:2px;
 }
 
-/* ==========================================================================
-   RESCHEDULE ALERT  (used inside patient notification cards)
-   ========================================================================== */
+/*RESCHEDULE ALERT*/
 .reschedule-alert{
     display:flex;
     align-items:flex-start;
@@ -2182,9 +2095,7 @@ textarea:focus-visible,
     flex-shrink:0;
 }
 
-/* ==========================================================================
-   SERVICE DETAILS MODAL
-   ========================================================================== */
+/*SERVICE DETAILS MODAL*/
 .service-details-card{
     position:relative;
     width:min(460px, 92%);
@@ -2368,9 +2279,7 @@ textarea:focus-visible,
     }
 }
 
-/* ==========================================================================
-   SERVICE CARDS REFRESH
-   ========================================================================== */
+/*SERVICE CARDS REFRESH*/
 .service-card{
     padding:36px 26px 30px;
     border-radius:16px;
@@ -2448,9 +2357,7 @@ textarea:focus-visible,
     }
 }
 
-/* ==========================================================================
-   GLOBAL DESIGN TOKENS
-   ========================================================================== */
+/*GLOBAL DESIGN TOKENS*/
 :root{
     --shadow-sm:0 2px 8px rgba(23,1,26,.05);
     --shadow-md:0 6px 20px rgba(91,11,104,.08);
@@ -2653,12 +2560,10 @@ input,select,textarea{
     margin:8px auto 0;
 }
 
-/* Public nav */
 .public-header nav button{
     border-radius:8px;
 }
 
-/* Section spacing */
 .public-page > *:not(:last-child){
     margin-bottom:0;
 }
@@ -2673,7 +2578,6 @@ input,select,textarea{
     margin:0 auto 14px;
 }
 
-/* Patient table */
 .concern-cell{
     max-width:220px;
 }
@@ -2708,7 +2612,6 @@ input,select,textarea{
     }
 }
 
-/* Calendar event modal */
 #calendarEventModal{
     z-index:200;
 }
@@ -2732,9 +2635,7 @@ input,select,textarea{
     color:var(--purple2);
 }
 
-/* ==========================================================================
-   DASHBOARD ANALYTICS ROW
-   ========================================================================== */
+/*DASHBOARD ANALYTICS ROW*/
 .dashboard-analytics{
     display:grid;
     grid-template-columns:1fr 1fr 1.1fr;
@@ -2882,25 +2783,12 @@ input,select,textarea{
     opacity:.35;
 }
 
-
-/* ==========================================================================
-   NOTIFICATIONS  (public bell + admin bell)
-   --------------------------------------------------------------------------
-   Keep this section LAST in the file so these rules win over the ones above.
-   All classes use the nt- prefix. Selectors are prefixed with .nt-wrap /
-   .nt-panel on purpose: ".public-header nav button" would otherwise restyle
-   the buttons inside the panel.
-   Sections: Bell · Panel · Patient search · Patient cards · Admin items ·
-             Empty state · Motion · Small screens
-   ========================================================================== */
-
 .nt-wrap{
     position:relative;
     display:flex;
     align-items:center;
 }
 
-/* ---------- Bell ---------- */
 .nt-wrap .nt-bell{
     position:relative;
     width:44px;
@@ -2964,7 +2852,6 @@ input,select,textarea{
     box-shadow:0 0 0 2px #fff;
 }
 
-/* ---------- Panel ---------- */
 .nt-panel{
     position:absolute;
     top:calc(100% + 14px);
@@ -3043,7 +2930,6 @@ input,select,textarea{
     overflow-y:auto;
 }
 
-/* ---------- Patient search ---------- */
 .nt-search{
     position:relative;
     display:flex;
@@ -3120,7 +3006,6 @@ input,select,textarea{
     text-align:center;
 }
 
-/* ---------- Patient appointment cards ---------- */
 .nt-card{
     margin:10px 14px;
     padding:14px 15px;
@@ -3231,7 +3116,6 @@ input,select,textarea{
     color:#9ca3af;
 }
 
-/* Progress tracker */
 .nt-steps{
     display:flex;
     list-style:none;
@@ -3288,7 +3172,6 @@ input,select,textarea{
     box-shadow:0 0 0 4px rgba(120,19,138,.18);
 }
 
-/* ---------- Admin notification items ---------- */
 .nt-section{
     position:sticky;
     top:0;
@@ -3398,7 +3281,6 @@ input,select,textarea{
 
 .nt-item:not(.unread) .nt-dot{visibility:hidden}
 
-/* ---------- Empty state ---------- */
 .nt-empty{
     padding:34px 28px 38px;
     text-align:center;
@@ -3430,7 +3312,6 @@ input,select,textarea{
     color:var(--muted);
 }
 
-/* ---------- Motion ---------- */
 @keyframes ntPop{
     from{opacity:0;transform:translateY(-6px) scale(.98)}
     to{opacity:1;transform:none}
@@ -3449,11 +3330,10 @@ input,select,textarea{
     .nt-wrap .nt-bell.has-unread i{animation:none}
 }
 
-/* ---------- Small screens ---------- */
 @media (max-width:600px){
     .nt-panel{
         position:fixed;
-        top:78px; /* fallback; script.js sets the real value under the bell */
+        top:78px;
         left:12px;
         right:12px;
         width:auto;
@@ -3473,10 +3353,6 @@ input,select,textarea{
 
     .nt-card{margin:10px 12px}
 }
-
-/* ---------- Phone fixes for the rest of the system ---------- */
-/* Tall modals (new appointment, service details, approval) were taller than
-   a phone screen and got cut off. Let them scroll inside the screen. */
 .modal-card{
     max-height:92vh;
     overflow-y:auto;
@@ -3486,9 +3362,7 @@ input,select,textarea{
     .public-header{position:sticky;top:0}
     .nt-wrap .nt-bell{width:40px;height:40px}
 }
-/* ==========================================================================
-   TABLE POLISH + DELETE BUTTON
-   ========================================================================== */
+
 :root{ --line:#ebe4ee; --ink-2:#4b5563; }
 
 .table-card{ border:1px solid var(--line); }
@@ -3533,11 +3407,6 @@ input,select,textarea{
 }
 
 .btn-danger:hover{ background:#b82a2a; }
-/* ==========================================================================
-   MULTI-SELECT: checkboxes, row highlight, floating bar, dialog, undo toast
-   ========================================================================== */
-
-/* ---------- Checkbox ---------- */
 .row-check{
     -webkit-appearance:none;
     appearance:none;
@@ -3584,18 +3453,16 @@ input,select,textarea{
     padding-right:0;
 }
 
-/* ---------- Rows ---------- */
 tbody tr:has(.row-check){ cursor:pointer; }
 
 tr.row-selected td{ background:#f5ecfb !important; }
 tr.row-selected:hover td{ background:#efe0f8 !important; }
 tr.row-selected td:first-child{ box-shadow:inset 3px 0 0 var(--purple2); }
 
-/* ---------- Floating action bar ---------- */
 .bulk-float{
     position:fixed;
     bottom:28px;
-    left:calc(50% + 117px);          /* centered over the content area, beside the sidebar */
+    left:calc(50% + 117px);
     transform:translateX(-50%);
     z-index:90;
     animation:bulkUp .2s ease;
@@ -3685,8 +3552,6 @@ tr.row-selected td:first-child{ box-shadow:inset 3px 0 0 var(--purple2); }
     .bulk-pill{ justify-content:space-between; }
     .bulk-link{ display:none; }
 }
-
-/* ---------- Delete confirmation dialog ---------- */
 .delete-card{
     width:min(440px,92%);
     padding:30px 28px 24px;
@@ -3766,7 +3631,6 @@ tr.row-selected td:first-child{ box-shadow:inset 3px 0 0 var(--purple2); }
     gap:8px;
 }
 
-/* ---------- Undo toast ---------- */
 .undo-toast{
     position:fixed;
     left:calc(50% + 117px);

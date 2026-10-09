@@ -1,41 +1,4 @@
-/* ==========================================================================
-   PECAÑA DENTAL CLINIC MANAGEMENT SYSTEM  -  script.js
-   --------------------------------------------------------------------------
-   TABLE OF CONTENTS  (Ctrl+F the heading text)
-    1. STORAGE KEYS & GLOBAL STATE
-    2. HELPERS
-    3. DATA (patients, appointments, queues, inventory)
-    4. INVENTORY (materials per service & deduction)
-    5. PUBLIC SITE NAVIGATION
-    6. SERVICE DETAILS MODAL
-    7. ADMIN LOGIN
-    8. ADMIN NAVIGATION
-    9. MATERIAL STEPPER
-   10. SCHEDULE VALIDATION
-   11. ADMIN: CREATE APPOINTMENT
-   12. ADMIN: EDIT APPOINTMENT
-   13. PATIENTS
-   14. APPOINTMENT LIST
-   15. PUBLIC BOOKING FORM
-   16. APPROVE APPOINTMENT
-   17. APPOINTMENT QUEUE
-   18. WALK-IN QUEUE
-   19. DAILY SCHEDULE
-   20. INVENTORY PAGE
-   21. RESTOCK FORECAST
-   22. PUBLIC QUEUE STATUS
-   23. DASHBOARD (+ extras)
-   24. REPORTS
-   25. CALENDAR
-   26. NOTIFICATIONS (admin bell + patient bell)
-   27. WELCOME SPLASH
-   28. INITIALIZATION
-   ========================================================================== */
-
-
-/* ==========================================================================
-   1. STORAGE KEYS & GLOBAL STATE
-   ========================================================================== */
+/*STORAGE KEYS & GLOBAL STATE*/
 const STORAGE = {
     patients: "pecana_patients",
     appointments: "pecana_appointments",
@@ -52,11 +15,7 @@ let temporaryMaterialAdjustments = {};
 let temporaryWalkinAdjustments = {};
 let temporaryApprovalAdjustments = {};
 let pendingApprovalId = null;
-
-
-/* ==========================================================================
-   2. HELPERS
-   ========================================================================== */
+/*HELPERS*/
 const load = (key, fallback = []) => {
     try {
         const data = JSON.parse(localStorage.getItem(key));
@@ -110,11 +69,7 @@ const nextQueue = (prefix, arr) => {
         .filter(n => !isNaN(n));
     return prefix + String(Math.max(0, ...nums) + 1).padStart(3, "0");
 };
-
-
-/* ==========================================================================
-   3. DATA
-   ========================================================================== */
+/* DUMMY DATA*/
 let patients = load(STORAGE.patients, [
     { id: "P001", name: "Juan Dela Cruz", contact: "09171234567", email: "", dob: "1985-05-15", address: "Polangui, Albay", gender: "Male", emergency: "Maria Dela Cruz", concern: "Regular dental check-up", status: "Active" },
     { id: "P002", name: "Maria Santos", contact: "09181234567", email: "", dob: "1992-08-22", address: "Oas, Albay", gender: "Female", emergency: "Pedro Santos", concern: "Tooth cleaning", status: "Active" },
@@ -173,7 +128,6 @@ let inventory = load(STORAGE.inventory, DEFAULT_INVENTORY.map(i => ({ ...i })));
     if (changed) save(STORAGE.inventory, inventory);
 })();
 
-/* Keep multiple tabs in sync */
 window.addEventListener("storage", e => {
     if (!e.key) return;
     if (!Object.values(STORAGE).includes(e.key)) return;
@@ -186,11 +140,7 @@ window.addEventListener("storage", e => {
 
     renderAll();
 });
-
-
-/* ==========================================================================
-   4. INVENTORY (materials per service & deduction)
-   ========================================================================== */
+/* INVENTORY */
 const BOM = {
     "Dental Check-up": { "Dental Floss": 1 },
     "Dental Cleaning": { "Dental Floss": 2 },
@@ -219,11 +169,7 @@ function consumeInventory(service, appointmentId = null) {
     });
     save(STORAGE.inventory, inventory);
 }
-
-
-/* ==========================================================================
-   5. PUBLIC SITE NAVIGATION
-   ========================================================================== */
+/*PUBLIC SITE NAVIGATION */
 function showPublicPage(page) {
     document.getElementById("publicApp").classList.remove("hidden");
     document.getElementById("loginPage").classList.add("hidden");
@@ -267,11 +213,7 @@ function selectService(serviceName) {
     const nameField = document.getElementById("bookingName");
     if (nameField) nameField.focus();
 }
-
-
-/* ==========================================================================
-   6. SERVICE DETAILS MODAL
-   ========================================================================== */
+/*SERVICE DETAILS MODAL*/
 const SERVICE_INFO = {
     "Dental Check-up": {
         icon: "fa-tooth",
@@ -350,11 +292,7 @@ function proceedToBookService() {
     closeServiceDetailsModal();
     selectService(service);
 }
-
-
-/* ==========================================================================
-   7. ADMIN LOGIN
-   ========================================================================== */
+/*ADMIN LOGIN*/
 document.getElementById("loginForm").addEventListener("submit", e => {
     e.preventDefault();
     const user = document.getElementById("loginUsername").value.trim();
@@ -370,11 +308,7 @@ document.getElementById("loginForm").addEventListener("submit", e => {
         alert("Invalid login.");
     }
 });
-
-
-/* ==========================================================================
-   8. ADMIN NAVIGATION
-   ========================================================================== */
+/*ADMIN NAVIGATION */
 const pageNames = {
     dashboard: "Dashboard",
     appointments: "Appointment Management",
@@ -435,11 +369,7 @@ function renderAll() {
     updatePatientNotifications();
     if (currentAdminPage !== "forecast") renderForecastSummary();
 }
-
-
-/* ==========================================================================
-   9. MATERIAL STEPPER
-   ========================================================================== */
+/*MATERIAL STEPPER*/
 const MATERIAL_SCOPES = {
     appointment: { items: () => temporaryMaterialAdjustments, list: "predictionList", badge: "stockStatusBadge" },
     walkin:      { items: () => temporaryWalkinAdjustments,   list: "walkinPredictionList", badge: "walkinStockStatusBadge" },
@@ -522,11 +452,7 @@ function updateWalkinMaterialPrediction() {
         temporaryWalkinAdjustments = {};
     }
 }
-
-
-/* ==========================================================================
-   10. SCHEDULE VALIDATION
-   ========================================================================== */
+/*SCHEDULE VALIDATION*/
 const CLINIC_OPEN_MIN = 7 * 60;
 const CLINIC_CLOSE_MIN = 20 * 60;
 const LUNCH_START_MIN = 12 * 60;
@@ -609,11 +535,7 @@ function linkScheduleFields(dateId, timeId) {
         el.addEventListener("change", clear);
     });
 }
-
-
-/* ==========================================================================
-   11. ADMIN: CREATE APPOINTMENT
-   ========================================================================== */
+/*ADMIN: CREATE APPOINTMENT*/
 function openAppointmentModal() {
     renderAppointmentPatients();
     document.getElementById("adminAppointmentDate").value = today();
@@ -681,9 +603,7 @@ if (adminForm) {
 }
 
 
-/* ==========================================================================
-   12. ADMIN: EDIT APPOINTMENT
-   ========================================================================== */
+/*ADMIN: EDIT APPOINTMENT*/
 function openEditAppointmentModal(id) {
     const a = appointments.find(x => x.id === id);
     if (!a) return;
@@ -744,9 +664,7 @@ if (editAppointmentForm) {
 }
 
 
-/* ==========================================================================
-   13. PATIENTS
-   ========================================================================== */
+/*PATIENTS*/
 document.getElementById("patientForm").addEventListener("submit", e => {
     e.preventDefault();
 
@@ -824,7 +742,6 @@ function renderPatients() {
         p.name.toLowerCase().includes(filter) || p.id.toLowerCase().includes(filter)
     );
 
-    // keep only selections that are still visible
     selection.patient = new Set([...selection.patient].filter(id => filtered.some(p => p.id === id)));
 
     if (filtered.length === 0 && filter !== "") {
@@ -866,9 +783,7 @@ function renderPatients() {
 }
 
 
-/* ==========================================================================
-   14. APPOINTMENT LIST
-   ========================================================================== */
+/*APPOINTMENT LIST*/
 function renderAppointments() {
     const table = document.getElementById("appointmentTable");
     if (!table) return;
@@ -908,7 +823,6 @@ function renderAppointments() {
         return keyA.localeCompare(keyB);
     });
 
-    // keep only selections that are still visible
     selection.appointment = new Set([...selection.appointment].filter(id => sorted.some(a => a.id === id)));
 
     const dailyCounters = {};
@@ -947,9 +861,7 @@ function renderAppointments() {
 }
 
 
-/* ==========================================================================
-   15. PUBLIC BOOKING FORM
-   ========================================================================== */
+/*PUBLIC BOOKING FORM*/
 const publicForm = document.getElementById("appointmentForm");
 if (publicForm) {
     publicForm.addEventListener("submit", e => {
@@ -1002,9 +914,7 @@ if (publicForm) {
 }
 
 
-/* ==========================================================================
-   16. APPROVE APPOINTMENT
-   ========================================================================== */
+/*APPROVE APPOINTMENT*/
 function approveAppointment(id) {
     openApproveDetailsModal(id);
 }
@@ -1084,9 +994,7 @@ function confirmApproveAppointment() {
 }
 
 
-/* ==========================================================================
-   17. APPOINTMENT QUEUE
-   ========================================================================== */
+/*APPOINTMENT QUEUE*/
 function syncAppointmentQueue() {
     appointments.forEach(a => {
         let q = appointmentQueue.find(x => x.appointmentId === a.id);
@@ -1207,11 +1115,7 @@ function noShowAppointment(number) {
     save(STORAGE.appointments, appointments);
     renderAll();
 }
-
-
-/* ==========================================================================
-   18. WALK-IN QUEUE
-   ========================================================================== */
+/*WALK-IN QUEUE*/
 function renderWalkinPatients() {
     const select = document.getElementById("walkinPatient");
     if (!select) return;
@@ -1332,11 +1236,7 @@ function noShowWalkin(number) {
     save(STORAGE.walkins, walkins);
     renderAll();
 }
-
-
-/* ==========================================================================
-   19. DAILY SCHEDULE
-   ========================================================================== */
+/*DAILY SCHEDULE */
 function renderSchedule() {
     const table = document.getElementById("scheduleTable");
     if (!table) return;
@@ -1366,11 +1266,7 @@ function renderSchedule() {
         </tr>
     `).join("");
 }
-
-
-/* ==========================================================================
-   20. INVENTORY PAGE
-   ========================================================================== */
+/*INVENTORY PAGE*/
 function renderInventory() {
     const table = document.getElementById("inventoryTable");
     if (!table) return;
@@ -1415,11 +1311,7 @@ function handleRestockUpdate(e) {
     }
     return false;
 }
-
-
-/* ==========================================================================
-   21. RESTOCK FORECAST
-   ========================================================================== */
+/*RESTOCK FORECAST*/
 function getUpcoming(days = 30) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -1520,9 +1412,7 @@ function suggestRestock(name, stock, lead) {
 }
 
 
-/* ==========================================================================
-   22. PUBLIC QUEUE STATUS
-   ========================================================================== */
+/*PUBLIC QUEUE STATUS*/
 function renderPublicQueues() {
     const aBox = document.getElementById("publicAppointmentQueue");
     const wBox = document.getElementById("publicWalkinQueue");
@@ -1545,9 +1435,7 @@ function renderPublicQueues() {
 }
 
 
-/* ==========================================================================
-   23. DASHBOARD
-   ========================================================================== */
+/*DASHBOARD*/
 function renderDashboardCharts() {
     const genderData = {
         Male: patients.filter(p => p.gender === "Male").length,
@@ -1629,7 +1517,6 @@ function renderDashboard() {
     renderDashboardExtras();
 }
 
-/* ---------- Dashboard extras (daily stats, trend line, upcoming list) ---------- */
 let dailyApptChartInstance = null;
 let apptTrendChartInstance = null;
 let upcomingWeekStart = null;
@@ -1836,9 +1723,7 @@ function renderDashboardExtras() {
 }
 
 
-/* ==========================================================================
-   24. REPORTS
-   ========================================================================== */
+/*REPORTS */
 function inReportDateRange(dateStr) {
     const startEl = document.getElementById("reportStartDate");
     const endEl = document.getElementById("reportEndDate");
@@ -2106,9 +1991,7 @@ function printFilteredReport() {
 }
 
 
-/* ==========================================================================
-   25. CALENDAR
-   ========================================================================== */
+/*CALENDAR*/
 let advanceCalendar;
 
 function openAdvanceCalendar() {
@@ -2186,28 +2069,13 @@ function closeCalendarEventModal() {
 function closeCalendarModal() {
     document.getElementById("calendarModal").classList.add("hidden");
 }
-
-
-
-/* ==========================================================================
-   26. NOTIFICATIONS  (public bell + admin bell)
-   --------------------------------------------------------------------------
-   Sections in this block:
-     1. Config & helpers
-     2. Panel open / close
-     3. Admin notifications
-     4. Patient (public) notifications
-   Markup for both bells lives in index.html (.nt-wrap).
-   Styles live in style.css under "NOTIFICATIONS".
-   ========================================================================== */
-
-/* ---------- 1. Config & helpers ---------- */
+/* Config & helpers */
 const NT_ADMIN_READ_KEY = "pecana_admin_notif_read";
 const NT_LOOKUP_KEY     = "pecana_patient_lookup";
 const NT_SEEN_KEY       = "pecana_patient_seen";
 const NT_STEPS          = ["Requested", "Approved", "Serving", "Done"];
 
-let ntShownQuery = null; // query currently displayed in the patient panel
+let ntShownQuery = null;
 
 const ntRead = (key, fallback) => {
     try {
@@ -2233,7 +2101,7 @@ function ntEmpty(icon, title, text) {
         </div>`;
 }
 
-/* ---------- 2. Panel open / close ---------- */
+/*Panel open / close*/
 function ntClosePanels() {
     ["ntAdminBox", "ntPatientBox"].forEach(id =>
         document.getElementById(id)?.classList.add("hidden"));
@@ -2259,8 +2127,6 @@ function toggleNotifications(type) {
     else openPatientPanel();
 }
 
-/* On phones the panel is fixed to the screen; place it just under the bell
-   so it never covers the header or nav buttons, and cap its height. */
 function ntPositionPanels() {
     [["ntAdminBox", "adminBell"], ["ntPatientBox", "patientBell"]].forEach(([boxId, bellId]) => {
         const box  = document.getElementById(boxId);
@@ -2282,7 +2148,7 @@ window.addEventListener("resize", ntPositionPanels);
 window.addEventListener("scroll", ntPositionPanels, { passive: true });
 
 document.addEventListener("click", e => {
-    if (!e.target.isConnected) return; // element was re-rendered during this click
+    if (!e.target.isConnected) return; 
     if (!e.target.closest(".nt-wrap")) ntClosePanels();
 });
 
@@ -2290,12 +2156,11 @@ document.addEventListener("keydown", e => {
     if (e.key === "Escape") ntClosePanels();
 });
 
-/* ---------- 3. Admin notifications ---------- */
+/* Admin notifications */
 function ntBuildAdminNotifications() {
     const t = today();
     const items = [];
 
-    /* Inventory: out of stock / low stock */
     inventory.forEach(i => {
         const lead = `Supplier lead time: ${ntPlural(i.leadTime, "day")}`;
         if (i.stock <= 0) {
@@ -2319,9 +2184,8 @@ function ntBuildAdminNotifications() {
         }
     });
 
-    /* Inventory: projected shortage from upcoming appointments */
     calculateForecast().forEach(f => {
-        if (!f.warning || f.stock <= f.minimum) return; // already covered above
+        if (!f.warning || f.stock <= f.minimum) return;
         items.push({
             key: `fc:${f.id}:${f.projectedStock}`, group: "inventory", level: "warning", rank: 2,
             icon: "fa-chart-line", tag: "Forecast", sort: f.name,
@@ -2332,9 +2196,8 @@ function ntBuildAdminNotifications() {
         });
     });
 
-    /* Appointments waiting for approval */
     appointments
-        .filter(a => a.status === "Pending" && a.date >= t) // past-dated requests no longer show in the list
+        .filter(a => a.status === "Pending" && a.date >= t)
         .forEach(a => {
             const isToday = a.date === t;
             items.push({
@@ -2367,7 +2230,6 @@ function updateAdminNotifications() {
     const items = ntBuildAdminNotifications();
     const keys  = new Set(items.map(n => n.key));
 
-    // forget read marks for notifications that no longer exist
     let read = new Set(ntRead(NT_ADMIN_READ_KEY, []));
     const kept = [...read].filter(k => keys.has(k));
     if (kept.length !== read.size) {
@@ -2440,9 +2302,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-/* ---------- 4. Patient (public) notifications ---------- */
+/* Patient (public) notifications*/
 
-/* Privacy: only an exact full contact number or exact full name matches. */
 function ntFindAppointments(query) {
     const q = String(query || "").trim();
     if (!q) return [];
@@ -2461,7 +2322,6 @@ function ntFindAppointments(query) {
     return appointments.filter(a => ids.has(a.patientId));
 }
 
-/* Position in the same list the public Queue Status page shows (A001, A002...) */
 function ntQueueInfo(a) {
     const q = appointmentQueue.find(x => x.appointmentId === a.id);
     if (!q) return null;
@@ -2572,7 +2432,6 @@ function ntPatientCard(a, updated) {
         </article>`;
 }
 
-/* Renders results and marks them as seen. Returns how many were found. */
 function ntRenderPatientResults(query) {
     const list = document.getElementById("ntPatientList");
     if (!list) return 0;
@@ -2663,7 +2522,6 @@ function ntClearLookup() {
     updatePatientNotifications();
 }
 
-/* Called from renderAll(): keeps the badge and an open panel in sync. */
 function updatePatientNotifications() {
     const badge = document.getElementById("ntPatientBadge");
     const bell  = document.getElementById("patientBell");
@@ -2673,7 +2531,6 @@ function updatePatientNotifications() {
     const saved = localStorage.getItem(NT_LOOKUP_KEY);
     const isOpen = box && !box.classList.contains("hidden");
 
-    // live refresh while the panel is open
     if (isOpen && ntShownQuery) ntRenderPatientResults(ntShownQuery);
 
     let changed = 0;
@@ -2689,9 +2546,7 @@ function updatePatientNotifications() {
 }
 
 
-/* ==========================================================================
-   27. WELCOME SPLASH
-   ========================================================================== */
+/*WELCOME SPLASH */
 window.closeWelcomeSplash = function () {
     sessionStorage.setItem("pecana_entered", "true");
     const welcomeSplash = document.getElementById("welcomeSplash");
@@ -2738,11 +2593,7 @@ window.closeWelcomeSplash = function () {
         }
     });
 })();
-/* ==========================================================================
-   MULTI-SELECT + DELETE FEATURE
-   Checkbox / row-click / shift-click selection, floating action bar,
-   confirm dialog and Undo. Used by Appointment Management + Patient Records.
-   ========================================================================== */
+/* DELETE FEATURE */
 
 const selection  = { appointment: new Set(), patient: new Set() };
 const lastPicked = { appointment: null, patient: null };
@@ -2752,7 +2603,6 @@ const SELECT_CFG = {
     patient:     { bar: "patientBulkBar", count: "patientBulkCount", allBtn: "patientBulkAll", all: "patientSelectAll", body: "patientTable" }
 };
 
-/* The row id lives in the checkbox's onchange attribute */
 const rowIdOf = cb => (cb.getAttribute("onchange") || "").match(/'[^']+'\s*,\s*'([^']+)'/)?.[1] || null;
 
 function setSelected(type, id, on) {
@@ -2761,7 +2611,6 @@ function setSelected(type, id, on) {
     else selection[type].delete(id);
 }
 
-/* Refresh floating bar, header checkbox and row highlights */
 function syncSelectionUI(type) {
     const cfg  = SELECT_CFG[type];
     const set  = selection[type];
@@ -2811,7 +2660,6 @@ function clearSelection(type) {
     syncSelectionUI(type);
 }
 
-/* Select one row, or a whole range when Shift is held */
 function pickRow(type, cb, shift) {
     const boxes = [...document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`)];
     const idx   = boxes.indexOf(cb);
@@ -2831,19 +2679,17 @@ function pickRow(type, cb, shift) {
     syncSelectionUI(type);
 }
 
-/* Click a checkbox, or anywhere on a row (except buttons/links), to select */
 Object.entries(SELECT_CFG).forEach(([type, cfg]) => {
     const body = document.getElementById(cfg.body);
     if (!body) return;
 
-    body.addEventListener("mousedown", e => { if (e.shiftKey) e.preventDefault(); }); // no text highlight on shift+click
-
+    body.addEventListener("mousedown", e => { if (e.shiftKey) e.preventDefault(); });
     body.addEventListener("click", e => {
         const direct = e.target.closest(".row-check");
         if (direct) { pickRow(type, direct, e.shiftKey); return; }
 
         if (e.target.closest("button, a, input, label, select")) return;
-        if (String(window.getSelection?.() || "").length) return; // user is highlighting text
+        if (String(window.getSelection?.() || "").length) return;
 
         const cb = e.target.closest("tr")?.querySelector(".row-check");
         if (!cb) return;
@@ -2852,7 +2698,6 @@ Object.entries(SELECT_CFG).forEach(([type, cfg]) => {
     });
 });
 
-/* Esc: close the dialog first, otherwise clear the selection */
 document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     const modal = document.getElementById("deleteConfirmModal");
@@ -2861,8 +2706,8 @@ document.addEventListener("keydown", e => {
     clearSelection("patient");
 });
 
-/* ---------- Confirm dialog ---------- */
-let pendingDelete = null; // { type: "patient" | "appointment", ids: [...] }
+/*Confirm dialog  */
+let pendingDelete = null; 
 
 function requestBulkDelete(type) {
     const ids = [...selection[type]];
@@ -2905,7 +2750,6 @@ function requestBulkDelete(type) {
     }
 
     document.getElementById("deleteConfirmModal").classList.remove("hidden");
-    // safe default: focus Cancel so a stray Enter never deletes
     setTimeout(() => document.querySelector("#deleteConfirmModal .btn-outline")?.focus(), 30);
 }
 
@@ -2914,7 +2758,6 @@ function closeDeleteConfirm() {
     pendingDelete = null;
 }
 
-/* click on the dark backdrop closes the dialog */
 document.getElementById("deleteConfirmModal")?.addEventListener("click", e => {
     if (e.target.id === "deleteConfirmModal") closeDeleteConfirm();
 });
@@ -2925,7 +2768,6 @@ function confirmDelete() {
     const idSet = new Set(ids);
     const n = ids.length;
 
-    // snapshot for Undo
     undoSnapshot = {
         patients:         JSON.parse(JSON.stringify(patients)),
         appointments:     JSON.parse(JSON.stringify(appointments)),
@@ -2965,7 +2807,6 @@ function confirmDelete() {
     showUndoToast(`${n} ${noun}${n === 1 ? "" : "s"} deleted`);
 }
 
-/* ---------- Undo toast ---------- */
 let undoSnapshot = null;
 let undoTimer = null;
 
@@ -3011,9 +2852,7 @@ function undoDelete() {
     renderAll();
 }
 
-/* ==========================================================================
-   28. INITIALIZATION
-   ========================================================================== */
+/*INITIALIZATION*/
 document.addEventListener("DOMContentLoaded", () => {
     syncAppointmentQueue();
     renderAll();

@@ -114,7 +114,6 @@
         <button onclick="showPublicPage('appointment')">Appointment</button>
         <button onclick="showPublicPage('queue-status')">Queue Status</button>
 
-        <!-- PATIENT NOTIFICATIONS (bell) -->
         <div class="nt-wrap" id="ntPublicWrap">
             <button type="button" class="nt-bell" id="patientBell"
                     aria-label="Appointment status" aria-expanded="false"
@@ -482,7 +481,6 @@
     </div>
 
     <div class="admin-user-wrapper">
-        <!-- ADMIN NOTIFICATIONS (bell) -->
         <div class="nt-wrap nt-admin" id="ntAdminWrap">
             <button type="button" class="nt-bell" id="adminBell"
                     aria-label="Notifications" aria-expanded="false"
@@ -627,7 +625,6 @@
         </div>
 
         <div style="display: flex; gap: 10px; align-items: center;">
-            <!-- Bulk selection bar (appears when rows are checked) -->
             <div class="bulk-bar hidden" id="apptBulkBar">
                 <span class="bulk-count" id="apptBulkCount">0 selected</span>
                 <button type="button" class="bulk-clear" title="Clear selection" onclick="clearSelection('appointment')">
@@ -730,7 +727,6 @@
             <p>Manage registered clinic patients.</p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <!-- Bulk selection bar -->
             <div class="bulk-bar hidden" id="patientBulkBar">
                 <span class="bulk-count" id="patientBulkCount">0 selected</span>
                 <button type="button" class="bulk-clear" title="Clear selection" onclick="clearSelection('patient')">
