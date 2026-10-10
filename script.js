@@ -1994,17 +1994,42 @@ function printFilteredReport() {
 /*CALENDAR*/
 let advanceCalendar;
 
-function openAdvanceCalendar() {
-    document.getElementById("calendarModal").classList.remove("hidden");
-    const calendarEl = document.getElementById("calendar");
+const CAL_DURATION = {
+    "Dental Check-up": 45,
+    "Dental Cleaning": 45,
+    "Tooth Restoration": 60,
+    "Tooth Extraction": 45,
+    "Braces": 60
+};
 
-    const getApptEvents = () => appointments.map(app => ({
-        id: app.id,
-        title: `${app.patientName} (${app.service})`,
-        start: `${app.date}T${app.time}`,
-        backgroundColor: app.status === "Completed" ? "#16834b" : "#5b0b68",
-        borderColor: "transparent"
-    }));
+const calAddMinutes = (timeStr, mins) => {
+    const [h, m] = String(timeStr || "00:00").split(":").map(Number);
+    const total = Math.min(h * 60 + m + mins, 23 * 60 + 59);
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+};
+
+function calBuildEvents() {
+    const q = (document.getElementById("calSearch")?.value || "").trim().toLowerCase();
+
+    const events = appointments
+        .filter(a => a.date && a.time)
+        .filter(a => !q || `${a.patientName} ${a.service}`.toLowerCase().includes(q))
+        .map(a => {
+            const end = calAddMinutes(a.time, CAL_DURATION[a.service] || 45);
+            return {
+                id: a.id,
+                title: a.patientName,
+                start: `${a.date}T${a.time}`,
+                end: `${a.date}T${end}`,
+                classNames: ["cal-ev", `cal-ev-${statusClass(a.status)}`],
+                extendedProps: {
+                    service: a.service,
+                    status: a.status,
+                    startLabel: formatTime(a.time),
+                    timeLabel: `${formatTime(a.time)} – ${formatTime(end)}`
+                }
+            };
+        });
 
     const lunchBreak = {
         title: "Lunch Break",
@@ -2012,40 +2037,240 @@ function openAdvanceCalendar() {
         endTime: "13:00:00",
         daysOfWeek: [1, 2, 3, 4, 5, 6],
         display: "background",
-        color: "#ffeded"
+        classNames: ["cal-lunch"]
     };
+
+    return [...events, lunchBreak];
+}
+
+function calScrollTime() {
+    const h = Math.min(Math.max(new Date().getHours() - 1, 7), 17);
+    return `${String(h).padStart(2, "0")}:00:00`;
+}
+
+function calSyncToolbar() {
+    if (!advanceCalendar) return;
+    const v = advanceCalendar.view;
+
+    document.getElementById("calTitle").textContent = v.title;
+    document.querySelectorAll(".cal-view-switch button").forEach(b =>
+        b.classList.toggle("active", b.dataset.view === v.type));
+
+    const now = new Date();
+    document.getElementById("calToday").classList.toggle("is-current", now >= v.currentStart && now < v.currentEnd);
+
+    const count = advanceCalendar.getEvents()
+        .filter(e => e.display !== "background" && e.start >= v.currentStart && e.start < v.currentEnd).length;
+    document.getElementById("calCount").textContent = `${count} appointment${count === 1 ? "" : "s"} in this view`;
+}
+
+function calWireToolbar() {
+    document.getElementById("calPrev").onclick = () => advanceCalendar.prev();
+    document.getElementById("calNext").onclick = () => advanceCalendar.next();
+    document.getElementById("calToday").onclick = () => advanceCalendar.today();
+    document.querySelectorAll(".cal-view-switch button").forEach(b => {
+        b.onclick = () => advanceCalendar.changeView(b.dataset.view);
+    });
+    document.getElementById("calSearch").addEventListener("input", () => advanceCalendar.refetchEvents());
+}
+
+function openAdvanceCalendar() {
+    document.getElementById("calendarModal").classList.remove("hidden");
+    const calendarEl = document.getElementById("calendar");
 
     if (!advanceCalendar) {
         advanceCalendar = new FullCalendar.Calendar(calendarEl, {
             initialView: "timeGridWeek",
-            headerToolbar: {
-                left: "prev,next today",
-                center: "title",
-                right: "dayGridMonth,timeGridWeek"
-            },
+            headerToolbar: false,
+            height: "100%",
+            firstDay: 1,
+            nowIndicator: true,
+            allDaySlot: false,
             slotMinTime: "07:00:00",
             slotMaxTime: "21:00:00",
-            contentHeight: "auto",
-            allDaySlot: false,
-            expandRows: true,
-            handleWindowResize: true,
+            slotDuration: "00:30:00",
+            slotLabelInterval: "01:00:00",
+            scrollTime: calScrollTime(),
+            expandRows: false,
+            slotEventOverlap: false,
+            eventMinHeight: 44,
+            eventDisplay: "block",
+            dayMaxEvents: 3,
+            fixedWeekCount: false,
+            noEventsContent: "No appointments for this week",
+            eventTimeFormat: { hour: "numeric", minute: "2-digit", meridiem: "short" },
             businessHours: [
                 { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: "07:00", endTime: "12:00" },
                 { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: "13:00", endTime: "20:00" }
             ],
-            events: [...getApptEvents(), lunchBreak],
+            events: (info, success) => success(calBuildEvents()),
+
+            slotLabelContent: arg => arg.date.toLocaleTimeString("en-US", { hour: "numeric" }),
+
+            dayHeaderContent: arg => {
+                if (arg.view.type === "dayGridMonth") return arg.text;
+                const name = arg.date.toLocaleDateString("en-US", { weekday: "short" });
+                return { html: `<span class="cal-dh-num">${arg.date.getDate()}</span><span class="cal-dh-name">${name}</span>` };
+            },
+
+            eventContent: arg => {
+                const ev = arg.event;
+                if (ev.display === "background") {
+                    return { html: `<span class="cal-lunch-label"><i class="fa-solid fa-utensils"></i> Lunch Break</span>` };
+                }
+                const p = ev.extendedProps;
+
+                if (arg.view.type === "listWeek") {
+                    return { html: `
+                        <div class="cal-ls">
+                            <strong>${esc(ev.title)}</strong>
+                            <span>${esc(p.service)}</span>
+                            <em class="cal-ls-badge">${esc(p.status)}</em>
+                        </div>` };
+                }
+
+                if (arg.view.type === "dayGridMonth") {
+                    return { html: `<div class="cal-mo"><span class="cal-mo-time">${esc(p.startLabel)}</span><span class="cal-mo-name">${esc(ev.title)}</span></div>` };
+                }
+
+                const icon = SERVICE_INFO[p.service]?.icon || "fa-tooth";
+                return { html: `
+                    <div class="cal-ev-inner">
+                        <div class="cal-ev-name"><i class="fa-solid ${icon}"></i><span>${esc(ev.title)}</span></div>
+                        <div class="cal-ev-time">${esc(p.timeLabel)}</div>
+                        <div class="cal-ev-service">${esc(p.service)}</div>
+                    </div>` };
+            },
+
+            eventDidMount: info => {
+                if (info.event.display === "background") return;
+                const p = info.event.extendedProps;
+                info.el.title = `${info.event.title} · ${p.service} · ${p.timeLabel} · ${p.status}`;
+            },
+
             eventClick: info => {
                 info.jsEvent.preventDefault();
                 if (info.event.id) openCalendarEventDetails(info.event.id);
-            }
+            },
+
+            dateClick: info => {
+                if (advanceCalendar.view.type === "dayGridMonth") advanceCalendar.changeView("timeGridWeek", info.date);
+            },
+
+            datesSet: calSyncToolbar,
+            eventsSet: calSyncToolbar
         });
+
+        calWireToolbar();
+        advanceCalendar.render();
     } else {
-        advanceCalendar.removeAllEvents();
-        advanceCalendar.addEventSource([...getApptEvents(), lunchBreak]);
+        advanceCalendar.refetchEvents();
     }
 
-    advanceCalendar.render();
-    setTimeout(() => advanceCalendar.updateSize(), 100);
+    setTimeout(() => {
+        advanceCalendar.updateSize();
+        advanceCalendar.scrollToTime(calScrollTime());
+        calSyncToolbar();
+    }, 60);
+}
+function openAdvanceCalendar() {
+    document.getElementById("calendarModal").classList.remove("hidden");
+    const calendarEl = document.getElementById("calendar");
+
+    if (!advanceCalendar) {
+        advanceCalendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: "timeGridWeek",
+            headerToolbar: false,
+            height: "100%",
+            firstDay: 1,
+            nowIndicator: true,
+            allDaySlot: false,
+            slotMinTime: "07:00:00",
+            slotMaxTime: "21:00:00",
+            slotDuration: "00:30:00",
+            slotLabelInterval: "01:00:00",
+            scrollTime: calScrollTime(),
+            expandRows: false,
+            slotEventOverlap: false,
+            eventMinHeight: 44,
+            eventDisplay: "block",
+            dayMaxEvents: 3,
+            fixedWeekCount: false,
+            noEventsContent: "No appointments for this week",
+            eventTimeFormat: { hour: "numeric", minute: "2-digit", meridiem: "short" },
+            businessHours: [
+                { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: "07:00", endTime: "12:00" },
+                { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: "13:00", endTime: "20:00" }
+            ],
+            events: (info, success) => success(calBuildEvents()),
+
+            slotLabelContent: arg => arg.date.toLocaleTimeString("en-US", { hour: "numeric" }),
+
+            dayHeaderContent: arg => {
+                if (arg.view.type === "dayGridMonth") return arg.text;
+                const name = arg.date.toLocaleDateString("en-US", { weekday: "short" });
+                return { html: `<span class="cal-dh-num">${arg.date.getDate()}</span><span class="cal-dh-name">${name}</span>` };
+            },
+
+            eventContent: arg => {
+                const ev = arg.event;
+                if (ev.display === "background") {
+                    return { html: `<span class="cal-lunch-label"><i class="fa-solid fa-utensils"></i> Lunch Break</span>` };
+                }
+                const p = ev.extendedProps;
+
+                if (arg.view.type === "listWeek") {
+                    return { html: `
+                        <div class="cal-ls">
+                            <strong>${esc(ev.title)}</strong>
+                            <span>${esc(p.service)}</span>
+                            <em class="cal-ls-badge">${esc(p.status)}</em>
+                        </div>` };
+                }
+
+                if (arg.view.type === "dayGridMonth") {
+                    return { html: `<div class="cal-mo"><span class="cal-mo-time">${esc(p.startLabel)}</span><span class="cal-mo-name">${esc(ev.title)}</span></div>` };
+                }
+
+                const icon = SERVICE_INFO[p.service]?.icon || "fa-tooth";
+                return { html: `
+                    <div class="cal-ev-inner">
+                        <div class="cal-ev-name"><i class="fa-solid ${icon}"></i><span>${esc(ev.title)}</span></div>
+                        <div class="cal-ev-time">${esc(p.timeLabel)}</div>
+                        <div class="cal-ev-service">${esc(p.service)}</div>
+                    </div>` };
+            },
+
+            eventDidMount: info => {
+                if (info.event.display === "background") return;
+                const p = info.event.extendedProps;
+                info.el.title = `${info.event.title} · ${p.service} · ${p.timeLabel} · ${p.status}`;
+            },
+
+            eventClick: info => {
+                info.jsEvent.preventDefault();
+                if (info.event.id) openCalendarEventDetails(info.event.id);
+            },
+
+            dateClick: info => {
+                if (advanceCalendar.view.type === "dayGridMonth") advanceCalendar.changeView("timeGridWeek", info.date);
+            },
+
+            datesSet: calSyncToolbar,
+            eventsSet: calSyncToolbar
+        });
+
+        calWireToolbar();
+        advanceCalendar.render();
+    } else {
+        advanceCalendar.refetchEvents();
+    }
+
+    setTimeout(() => {
+        advanceCalendar.updateSize();
+        advanceCalendar.scrollToTime(calScrollTime());
+        calSyncToolbar();
+    }, 60);
 }
 
 function openCalendarEventDetails(id) {
@@ -2069,6 +2294,7 @@ function closeCalendarEventModal() {
 function closeCalendarModal() {
     document.getElementById("calendarModal").classList.add("hidden");
 }
+
 /* Config & helpers */
 const NT_ADMIN_READ_KEY = "pecana_admin_notif_read";
 const NT_LOOKUP_KEY     = "pecana_patient_lookup";

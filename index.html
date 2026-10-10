@@ -1174,30 +1174,50 @@
 
 <!-- CALENDAR MODAL -->
 <div id="calendarModal" class="modal hidden">
-    <div class="modal-card" style="width: min(800px, 85%);">
-        <div class="modal-header">
-            <h2>Advance Appointment Schedule</h2>
-            <button onclick="closeCalendarModal()">×</button>
+    <div class="modal-card cal-modal-card">
+        <div class="cal-topbar">
+            <div>
+                <h2>Advance Appointment Schedule</h2>
+                <p>Plan and review upcoming appointments</p>
+            </div>
+            <button type="button" class="cal-close" aria-label="Close" onclick="closeCalendarModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
-        <div id="calendar" style="padding: 10px; background: white;"></div>
-    </div>
-</div>
 
-<!-- CALENDAR EVENT MODAL -->
-<div id="calendarEventModal" class="modal hidden">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h2>Appointment Details</h2>
-            <button type="button" onclick="closeCalendarEventModal()">×</button>
-        </div>
-        <div id="calendarEventContent" class="patient-detail"></div>
-        <div class="form-buttons" style="margin-top:20px;">
-            <button type="button" class="btn-primary" style="flex:1;" onclick="closeCalendarEventModal()">Close</button>
-        </div>
-    </div>
-</div>
+        <div class="cal-toolbar">
+            <div class="cal-nav">
+                <button type="button" id="calToday" class="cal-today-btn">Today</button>
+                <div class="cal-range-nav">
+                    <button type="button" id="calPrev" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button>
+                    <strong id="calTitle">&nbsp;</strong>
+                    <button type="button" id="calNext" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
 
-</main>
+            <div class="cal-tools">
+                <div class="cal-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="calSearch" placeholder="Search patient or service" autocomplete="off">
+                </div>
+                <div class="cal-view-switch">
+                <button type="button" data-view="timeGridWeek" class="active">Week</button>
+                <button type="button" data-view="dayGridMonth">Month</button>
+                <button type="button" data-view="listWeek">Agenda</button>
+            </div>
+            </div>
+        </div>
+
+        <div class="cal-legend">
+            <span><i class="cal-dot pending"></i>Pending</span>
+            <span><i class="cal-dot approved"></i>Approved</span>
+            <span><i class="cal-dot completed"></i>Completed</span>
+            <span><i class="cal-dot no-show"></i>No-show</span>
+            <span class="cal-count" id="calCount"></span>
+        </div>
+
+        <div id="calendar"></div>
+    </div>
 </div>
 <!-- DELETE CONFIRMATION MODAL -->
 <div id="deleteConfirmModal" class="modal hidden">
