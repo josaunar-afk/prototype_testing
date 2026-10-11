@@ -1,4 +1,8 @@
-/*STORAGE KEYS & GLOBAL STATE*/
+/* ============================================================
+   Pecaña Dental Clinic Management System
+   ============================================================ */
+
+/* ---------- Config & shared helpers ---------- */
 const STORAGE = {
     patients: "pecana_patients",
     appointments: "pecana_appointments",
@@ -6,34 +10,31 @@ const STORAGE = {
     walkins: "pecana_walkin_queue",
     inventory: "pecana_inventory"
 };
-
-let genderChartInstance = null;
-let serviceChartInstance = null;
-let inventoryChartInstance = null;
-
-let temporaryMaterialAdjustments = {};
-let temporaryWalkinAdjustments = {};
-let temporaryApprovalAdjustments = {};
-let pendingApprovalId = null;
-/*HELPERS*/
-const load = (key, fallback = []) => {
-    try {
-        const data = JSON.parse(localStorage.getItem(key));
-        return Array.isArray(data) ? data : fallback;
-    } catch {
-        return fallback;
-    }
+const NT_KEYS = {
+    adminRead: "pecana_admin_notif_read",
+    lookup: "pecana_patient_lookup",
+    seen: "pecana_patient_seen"
 };
+const NT_STEPS = ["Requested", "Approved", "Serving", "Done"];
 
+const $ = id => document.getElementById(id);
+const openModal = id => $(id).classList.remove("hidden");
+const closeModal = id => $(id).classList.add("hidden");
+
+const readJSON = (key, fallback) => {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+    catch { return fallback; }
+};
+const load = (key, fallback = []) => {
+    const data = readJSON(key, fallback);
+    return Array.isArray(data) ? data : fallback;
+};
 const save = (key, data) => localStorage.setItem(key, JSON.stringify(data));
 
-const today = () => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-};
+const pad3 = n => String(n).padStart(3, "0");
+const dateStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = () => dateStr(new Date());
+const addDays = (s, n) => { const d = new Date(s + "T00:00:00"); d.setDate(d.getDate() + n); return dateStr(d); };
 
 const formatDate = d => d
     ? new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -48,60 +49,50 @@ const formatTime = t => {
 };
 
 const esc = v => String(v ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 
 const statusClass = s => (s || "Waiting").toLowerCase().replaceAll(" ", "-");
 
 const nextId = (prefix, arr) => {
-    const nums = arr.map(x => {
-        const n = parseInt(String(x.id || "").replace(/\D/g, ""));
-        return isNaN(n) ? 0 : n;
-    });
-    return prefix + String(Math.max(0, ...nums) + 1).padStart(3, "0");
+    const nums = arr.map(x => parseInt(String(x.id || "").replace(/\D/g, "")) || 0);
+    return prefix + pad3(Math.max(0, ...nums) + 1);
 };
-
 const nextQueue = (prefix, arr) => {
-    const nums = arr.map(x => parseInt(String(x.number || "").replace(/\D/g, "")))
-        .filter(n => !isNaN(n));
-    return prefix + String(Math.max(0, ...nums) + 1).padStart(3, "0");
+    const nums = arr.map(x => parseInt(String(x.number || "").replace(/\D/g, ""))).filter(n => !isNaN(n));
+    return prefix + pad3(Math.max(0, ...nums) + 1);
 };
-/* DUMMY DATA*/
-let patients = load(STORAGE.patients, [
-    { id: "P001", name: "Juan Dela Cruz", contact: "09171234567", email: "", dob: "1985-05-15", address: "Polangui, Albay", gender: "Male", emergency: "Maria Dela Cruz", concern: "Regular dental check-up", status: "Active" },
-    { id: "P002", name: "Maria Santos", contact: "09181234567", email: "", dob: "1992-08-22", address: "Oas, Albay", gender: "Female", emergency: "Pedro Santos", concern: "Tooth cleaning", status: "Active" },
-    { id: "P003", name: "Carlos Reyes", contact: "09191234567", email: "", dob: "1980-02-10", address: "Ligao City, Albay", gender: "Male", emergency: "Ana Reyes", concern: "Tooth pain", status: "Active" },
-    { id: "P004", name: "Antonio Rivera", contact: "09201112233", email: "", dob: "1995-04-12", address: "Guinobatan, Albay", gender: "Male", emergency: "Liza Rivera", concern: "Braces adjustment", status: "Active" },
-    { id: "P005", name: "Elena Garcia", contact: "09212223344", email: "", dob: "1988-11-30", address: "Polangui, Albay", gender: "Female", emergency: "Jose Garcia", concern: "Wisdom tooth consultation", status: "Active" },
-    { id: "P006", name: "Ricardo Ramos", contact: "09223334455", email: "", dob: "1975-07-08", address: "Camalig, Albay", gender: "Male", emergency: "Celia Ramos", concern: "Gum bleeding", status: "Active" },
-    { id: "P007", name: "Josefina Mendoza", contact: "09234445566", email: "", dob: "1960-01-25", address: "Oas, Albay", gender: "Female", emergency: "Mario Mendoza", concern: "Dentures fitting", status: "Active" },
-    { id: "P008", name: "Manuel Castro", contact: "09245556677", email: "", dob: "1998-12-05", address: "Ligao City, Albay", gender: "Male", emergency: "Sara Castro", concern: "Teeth whitening", status: "Active" },
-    { id: "P009", name: "Remedios Lopez", contact: "09256667788", email: "", dob: "1972-03-18", address: "Polangui, Albay", gender: "Female", emergency: "Danilo Lopez", concern: "Root canal therapy", status: "Active" },
-    { id: "P010", name: "Francisco Tan", contact: "09267778899", email: "", dob: "1983-06-21", address: "Guinobatan, Albay", gender: "Male", emergency: "Aimee Tan", concern: "Dental implants", status: "Active" },
-    { id: "P011", name: "Pacita Aquino", contact: "09278889900", email: "", dob: "1990-10-10", address: "Oas, Albay", gender: "Female", emergency: "Ben Aquino", concern: "Scaling and polishing", status: "Active" },
-    { id: "P012", name: "Ramon Bautista", contact: "09289990011", email: "", dob: "1965-08-05", address: "Camalig, Albay", gender: "Male", emergency: "Vilma Bautista", concern: "Crown replacement", status: "Active" },
-    { id: "P013", name: "Luzviminda Villamor", contact: "09290001122", email: "", dob: "1978-02-28", address: "Ligao City, Albay", gender: "Female", emergency: "Oscar Villamor", concern: "Bad breath consultation", status: "Active" },
-    { id: "P014", name: "Angelito Gonzales", contact: "09301112233", email: "", dob: "2000-07-22", address: "Polangui, Albay", gender: "Male", emergency: "Grace Gonzales", concern: "Mouth guard fitting", status: "Active" },
-    { id: "P015", name: "Corazon Salvador", contact: "09312223344", email: "", dob: "1996-04-09", address: "Oas, Albay", gender: "Female", emergency: "Luis Salvador", concern: "Tooth extraction", status: "Active" },
-    { id: "P016", name: "Benigno Dizon", contact: "09323334455", email: "", dob: "1982-01-01", address: "Guinobatan, Albay", gender: "Male", emergency: "Cory Dizon", concern: "Bridge adjustment", status: "Active" },
-    { id: "P017", name: "Teresita Roxas", contact: "09334445566", email: "", dob: "2005-09-14", address: "Polangui, Albay", gender: "Female", emergency: "Felipe Roxas", concern: "Cavity filling", status: "Active" },
-    { id: "P018", name: "Fidel Pineda", contact: "09345556677", email: "", dob: "1987-12-30", address: "Camalig, Albay", gender: "Male", emergency: "Eva Pineda", concern: "Sensitivity issues", status: "Active" },
-    { id: "P019", name: "Gloria de Leon", contact: "09356667788", email: "", dob: "1993-05-04", address: "Ligao City, Albay", gender: "Female", emergency: "Mar de Leon", concern: "Impacted tooth", status: "Active" },
-    { id: "P020", name: "Oscar Macapagal", contact: "09367778899", email: "", dob: "1955-11-11", address: "Oas, Albay", gender: "Male", emergency: "Nestor Macapagal", concern: "Jaw pain", status: "Active" }
-]);
 
-let appointments = load(STORAGE.appointments, [
-    { id: "APT001", patientId: "P001", patientName: "Juan Dela Cruz", date: today(), time: "09:00", service: "Dental Check-up", status: "Approved", queueStatus: "Waiting", customMaterials: { "Dental Floss": 1 } }
-]);
+/* Adds a per-day running number (A001, APT001 ...) to a list of rows that have a `date`. */
+const withDailyNumbers = (rows, prefix) => {
+    const counters = {};
+    return rows.map(r => ({ ...r, displayNo: prefix + pad3(counters[r.date] = (counters[r.date] || 0) + 1) }));
+};
 
-let appointmentQueue = load(STORAGE.appointmentQueue, [
-    { number: "A001", appointmentId: "APT001", patientId: "P001", patientName: "Juan Dela Cruz", service: "Dental Check-up", time: "09:00", date: today(), status: "Waiting" }
-]);
-
-let walkins = load(STORAGE.walkins, []);
+/* ---------- Seed data ---------- */
+const SEED_PATIENTS = [
+    ["Juan Dela Cruz", "09171234567", "1985-05-15", "Polangui, Albay", "Male", "Maria Dela Cruz", "Regular dental check-up"],
+    ["Maria Santos", "09181234567", "1992-08-22", "Oas, Albay", "Female", "Pedro Santos", "Tooth cleaning"],
+    ["Carlos Reyes", "09191234567", "1980-02-10", "Ligao City, Albay", "Male", "Ana Reyes", "Tooth pain"],
+    ["Antonio Rivera", "09201112233", "1995-04-12", "Guinobatan, Albay", "Male", "Liza Rivera", "Braces adjustment"],
+    ["Elena Garcia", "09212223344", "1988-11-30", "Polangui, Albay", "Female", "Jose Garcia", "Wisdom tooth consultation"],
+    ["Ricardo Ramos", "09223334455", "1975-07-08", "Camalig, Albay", "Male", "Celia Ramos", "Gum bleeding"],
+    ["Josefina Mendoza", "09234445566", "1960-01-25", "Oas, Albay", "Female", "Mario Mendoza", "Dentures fitting"],
+    ["Manuel Castro", "09245556677", "1998-12-05", "Ligao City, Albay", "Male", "Sara Castro", "Teeth whitening"],
+    ["Remedios Lopez", "09256667788", "1972-03-18", "Polangui, Albay", "Female", "Danilo Lopez", "Root canal therapy"],
+    ["Francisco Tan", "09267778899", "1983-06-21", "Guinobatan, Albay", "Male", "Aimee Tan", "Dental implants"],
+    ["Pacita Aquino", "09278889900", "1990-10-10", "Oas, Albay", "Female", "Ben Aquino", "Scaling and polishing"],
+    ["Ramon Bautista", "09289990011", "1965-08-05", "Camalig, Albay", "Male", "Vilma Bautista", "Crown replacement"],
+    ["Luzviminda Villamor", "09290001122", "1978-02-28", "Ligao City, Albay", "Female", "Oscar Villamor", "Bad breath consultation"],
+    ["Angelito Gonzales", "09301112233", "2000-07-22", "Polangui, Albay", "Male", "Grace Gonzales", "Mouth guard fitting"],
+    ["Corazon Salvador", "09312223344", "1996-04-09", "Oas, Albay", "Female", "Luis Salvador", "Tooth extraction"],
+    ["Benigno Dizon", "09323334455", "1982-01-01", "Guinobatan, Albay", "Male", "Cory Dizon", "Bridge adjustment"],
+    ["Teresita Roxas", "09334445566", "2005-09-14", "Polangui, Albay", "Female", "Felipe Roxas", "Cavity filling"],
+    ["Fidel Pineda", "09345556677", "1987-12-30", "Camalig, Albay", "Male", "Eva Pineda", "Sensitivity issues"],
+    ["Gloria de Leon", "09356667788", "1993-05-04", "Ligao City, Albay", "Female", "Mar de Leon", "Impacted tooth"],
+    ["Oscar Macapagal", "09367778899", "1955-11-11", "Oas, Albay", "Male", "Nestor Macapagal", "Jaw pain"]
+].map(([name, contact, dob, address, gender, emergency, concern], i) =>
+    ({ id: "P" + pad3(i + 1), name, contact, email: "", dob, address, gender, emergency, concern, status: "Active" }));
 
 const DEFAULT_INVENTORY = [
     { id: "I001", name: "Composite Resin", stock: 12, minimum: 5, leadTime: 5 },
@@ -113,14 +104,21 @@ const DEFAULT_INVENTORY = [
     { id: "I007", name: "Elastic Ligatures", stock: 50, minimum: 20, leadTime: 5 }
 ];
 
+let patients = load(STORAGE.patients, SEED_PATIENTS);
+let appointments = load(STORAGE.appointments, [
+    { id: "APT001", patientId: "P001", patientName: "Juan Dela Cruz", date: today(), time: "09:00", service: "Dental Check-up", status: "Approved", queueStatus: "Waiting", customMaterials: { "Dental Floss": 1 } }
+]);
+let appointmentQueue = load(STORAGE.appointmentQueue, [
+    { number: "A001", appointmentId: "APT001", patientId: "P001", patientName: "Juan Dela Cruz", service: "Dental Check-up", time: "09:00", date: today(), status: "Waiting" }
+]);
+let walkins = load(STORAGE.walkins, []);
 let inventory = load(STORAGE.inventory, DEFAULT_INVENTORY.map(i => ({ ...i })));
 
+/* Make sure newly added default materials exist in older saved data */
 (function ensureInventoryHasAllMaterials() {
-    const existingIds = new Set(inventory.map(i => i.id));
-    const existingNames = new Set(inventory.map(i => i.name));
     let changed = false;
     DEFAULT_INVENTORY.forEach(item => {
-        if (!existingIds.has(item.id) && !existingNames.has(item.name)) {
+        if (!inventory.some(i => i.id === item.id || i.name === item.name)) {
             inventory.push({ ...item });
             changed = true;
         }
@@ -128,19 +126,62 @@ let inventory = load(STORAGE.inventory, DEFAULT_INVENTORY.map(i => ({ ...i })));
     if (changed) save(STORAGE.inventory, inventory);
 })();
 
+/* Keep several open tabs in sync */
 window.addEventListener("storage", e => {
-    if (!e.key) return;
-    if (!Object.values(STORAGE).includes(e.key)) return;
-
+    if (!e.key || !Object.values(STORAGE).includes(e.key)) return;
     patients = load(STORAGE.patients, patients);
     appointments = load(STORAGE.appointments, appointments);
     appointmentQueue = load(STORAGE.appointmentQueue, appointmentQueue);
     walkins = load(STORAGE.walkins, walkins);
     inventory = load(STORAGE.inventory, inventory);
-
     renderAll();
 });
-/* INVENTORY */
+
+/* ---------- Services & materials (BOM) ---------- */
+const SERVICE_INFO = {
+    "Dental Check-up": {
+        icon: "fa-tooth",
+        short: "Complete dental examination.",
+        desc: "A routine examination of the teeth, gums, and mouth to identify cavities, gum problems, and other oral health concerns early.",
+        duration: "20–30 minutes",
+        idealFor: "Anyone due for a routine oral health review",
+        includes: ["Visual and manual oral examination", "Gum and bite assessment", "Personalized oral hygiene advice"]
+    },
+    "Dental Cleaning": {
+        icon: "fa-wand-magic-sparkles",
+        short: "Professional preventive cleaning.",
+        desc: "A professional procedure that removes plaque and tartar buildup to help prevent cavities, gum disease, and bad breath.",
+        duration: "30–45 minutes",
+        idealFor: "Patients wanting to maintain healthy gums and fresh breath",
+        includes: ["Plaque and tartar removal", "Teeth polishing", "Fluoride application (if needed)"]
+    },
+    "Tooth Restoration": {
+        icon: "fa-tooth",
+        short: "Restoration for damaged teeth.",
+        desc: "A treatment that repairs damaged or decayed teeth to restore their structure, function, and natural appearance.",
+        duration: "45–60 minutes",
+        idealFor: "Teeth affected by cavities, chips, or minor damage",
+        includes: ["Removal of decayed material", "Composite or bonding application", "Bite adjustment and polish"]
+    },
+    "Tooth Extraction": {
+        icon: "fa-teeth",
+        short: "Professional tooth extraction.",
+        desc: "A procedure that removes a severely damaged, decayed, or problematic tooth to prevent further dental complications.",
+        duration: "30–60 minutes",
+        idealFor: "Severely decayed, broken, or impacted teeth",
+        includes: ["Local anesthesia", "Safe tooth removal", "Aftercare instructions"]
+    },
+    "Braces": {
+        icon: "fa-teeth-open",
+        short: "Orthodontic treatment to gradually align and straighten teeth.",
+        desc: "An orthodontic treatment that gradually aligns and straightens teeth while helping improve bite and overall dental alignment.",
+        duration: "Ongoing treatment (regular adjustment visits)",
+        idealFor: "Patients with misaligned teeth or bite issues",
+        includes: ["Initial fitting and consultation", "Periodic wire/bracket adjustments", "Progress monitoring"]
+    }
+};
+const SERVICES = Object.keys(SERVICE_INFO);
+
 const BOM = {
     "Dental Check-up": { "Dental Floss": 1 },
     "Dental Cleaning": { "Dental Floss": 2 },
@@ -149,56 +190,48 @@ const BOM = {
     "Braces": { "Orthodontic Brackets": 20, "Archwire": 2, "Elastic Ligatures": 20 }
 };
 
-function materialsFor(a) {
-    return a.customMaterials && Object.keys(a.customMaterials).length
-        ? a.customMaterials
-        : (BOM[a.service] || {});
-}
+const materialsFor = a =>
+    a.customMaterials && Object.keys(a.customMaterials).length ? a.customMaterials : (BOM[a.service] || {});
 
-function consumeInventory(service, appointmentId = null) {
-    let materials = BOM[service] || {};
-
-    if (appointmentId) {
-        const appt = appointments.find(a => a.id === appointmentId);
-        if (appt && appt.customMaterials) materials = appt.customMaterials;
-    }
-
+function deductMaterials(materials) {
     Object.entries(materials).forEach(([name, qty]) => {
         const item = inventory.find(x => x.name === name);
         if (item) item.stock = Math.max(0, item.stock - qty);
     });
     save(STORAGE.inventory, inventory);
 }
-/*PUBLIC SITE NAVIGATION */
+
+/* Service cards (home + services page) and every service <select> are built from SERVICE_INFO */
+function renderServiceUI() {
+    const card = (name, text, label, action) => `
+        <div class="service-card">
+            <i class="fa-solid ${SERVICE_INFO[name].icon}"></i>
+            <h3>${name}</h3>
+            <p>${text}</p>
+            <button onclick="${action}('${name}')">${label}</button>
+        </div>`;
+
+    $("homeServiceGrid").innerHTML = SERVICES.map(n => card(n, SERVICE_INFO[n].desc, "See More Details", "viewServiceDetails")).join("");
+    $("servicesPageGrid").innerHTML = SERVICES.map(n => card(n, SERVICE_INFO[n].short, "Book This Service", "selectService")).join("");
+
+    const options = SERVICES.map(n => `<option>${n}</option>`).join("");
+    ["bookingService", "adminAppointmentService", "walkinService"].forEach(id => $(id).insertAdjacentHTML("beforeend", options));
+}
+
+/* ---------- Navigation ---------- */
+const VIEWS = ["publicApp", "loginPage", "adminApp"];
+const showView = name => VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== name));
+
 function showPublicPage(page) {
-    document.getElementById("publicApp").classList.remove("hidden");
-    document.getElementById("loginPage").classList.add("hidden");
-    document.getElementById("adminApp").classList.add("hidden");
+    showView("publicApp");
     document.querySelectorAll(".public-page").forEach(x => x.classList.remove("active"));
-
-    const target = document.getElementById("public-" + page);
-    if (target) target.classList.add("active");
-
+    $("public-" + page)?.classList.add("active");
     if (page === "queue-status") renderPublicQueues();
-    if (typeof updatePublicStats === "function") updatePublicStats();
-
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
 }
 
-function showPublicSite() {
-    document.getElementById("publicApp").classList.remove("hidden");
-    document.getElementById("loginPage").classList.add("hidden");
-    document.getElementById("adminApp").classList.add("hidden");
-    showPublicPage("home");
-}
-
-function showLogin() {
-    document.getElementById("publicApp").classList.add("hidden");
-    document.getElementById("adminApp").classList.add("hidden");
-    document.getElementById("loginPage").classList.remove("hidden");
-}
+const showPublicSite = () => showPublicPage("home");
+const showLogin = () => showView("loginPage");
 
 function logout() {
     sessionStorage.removeItem("pecana_admin_logged_in");
@@ -208,50 +241,11 @@ function logout() {
 
 function selectService(serviceName) {
     showPublicPage("appointment");
-    const select = document.getElementById("bookingService");
-    if (select) select.value = serviceName;
-    const nameField = document.getElementById("bookingName");
-    if (nameField) nameField.focus();
+    $("bookingService").value = serviceName;
+    $("bookingName").focus();
 }
-/*SERVICE DETAILS MODAL*/
-const SERVICE_INFO = {
-    "Dental Check-up": {
-        icon: "fa-tooth",
-        desc: "A routine examination of the teeth, gums, and mouth to identify cavities, gum problems, and other oral health concerns early.",
-        duration: "20–30 minutes",
-        idealFor: "Anyone due for a routine oral health review",
-        includes: ["Visual and manual oral examination", "Gum and bite assessment", "Personalized oral hygiene advice"]
-    },
-    "Dental Cleaning": {
-        icon: "fa-wand-magic-sparkles",
-        desc: "A professional procedure that removes plaque and tartar buildup to help prevent cavities, gum disease, and bad breath.",
-        duration: "30–45 minutes",
-        idealFor: "Patients wanting to maintain healthy gums and fresh breath",
-        includes: ["Plaque and tartar removal", "Teeth polishing", "Fluoride application (if needed)"]
-    },
-    "Tooth Restoration": {
-        icon: "fa-tooth",
-        desc: "A treatment that repairs damaged or decayed teeth to restore their structure, function, and natural appearance.",
-        duration: "45–60 minutes",
-        idealFor: "Teeth affected by cavities, chips, or minor damage",
-        includes: ["Removal of decayed material", "Composite or bonding application", "Bite adjustment and polish"]
-    },
-    "Tooth Extraction": {
-        icon: "fa-teeth",
-        desc: "A procedure that removes a severely damaged, decayed, or problematic tooth to prevent further dental complications.",
-        duration: "30–60 minutes",
-        idealFor: "Severely decayed, broken, or impacted teeth",
-        includes: ["Local anesthesia", "Safe tooth removal", "Aftercare instructions"]
-    },
-    "Braces": {
-        icon: "fa-teeth-open",
-        desc: "An orthodontic treatment that gradually aligns and straightens teeth while helping improve bite and overall dental alignment.",
-        duration: "Ongoing treatment (regular adjustment visits)",
-        idealFor: "Patients with misaligned teeth or bite issues",
-        includes: ["Initial fitting and consultation", "Periodic wire/bracket adjustments", "Progress monitoring"]
-    }
-};
 
+/* ---------- Service details modal ---------- */
 let pendingServiceSelection = null;
 
 function viewServiceDetails(serviceName) {
@@ -259,11 +253,10 @@ function viewServiceDetails(serviceName) {
     if (!info) return;
     pendingServiceSelection = serviceName;
 
-    document.getElementById("serviceDetailsTitle").textContent = serviceName;
-    document.getElementById("serviceDetailsIcon").innerHTML = `<i class="fa-solid ${info.icon}"></i>`;
-    document.getElementById("serviceDetailsDesc").textContent = info.desc;
-
-    document.getElementById("serviceDetailsMeta").innerHTML = `
+    $("serviceDetailsTitle").textContent = serviceName;
+    $("serviceDetailsIcon").innerHTML = `<i class="fa-solid ${info.icon}"></i>`;
+    $("serviceDetailsDesc").textContent = info.desc;
+    $("serviceDetailsMeta").innerHTML = `
         <div class="service-meta-item">
             <i class="fa-solid fa-clock"></i>
             <div><strong>Duration</strong><span>${esc(info.duration)}</span></div>
@@ -271,80 +264,58 @@ function viewServiceDetails(serviceName) {
         <div class="service-meta-item">
             <i class="fa-solid fa-user-check"></i>
             <div><strong>Ideal For</strong><span>${esc(info.idealFor)}</span></div>
-        </div>
-    `;
+        </div>`;
+    $("serviceDetailsIncludes").innerHTML = info.includes
+        .map(item => `<li><i class="fa-solid fa-circle-check"></i> ${esc(item)}</li>`).join("");
 
-    document.getElementById("serviceDetailsIncludes").innerHTML = info.includes.map(item =>
-        `<li><i class="fa-solid fa-circle-check"></i> ${esc(item)}</li>`
-    ).join("");
-
-    document.getElementById("serviceDetailsModal").classList.remove("hidden");
+    openModal("serviceDetailsModal");
 }
 
 function closeServiceDetailsModal() {
-    document.getElementById("serviceDetailsModal").classList.add("hidden");
+    closeModal("serviceDetailsModal");
     pendingServiceSelection = null;
 }
 
 function proceedToBookService() {
-    if (!pendingServiceSelection) { closeServiceDetailsModal(); return; }
     const service = pendingServiceSelection;
     closeServiceDetailsModal();
-    selectService(service);
+    if (service) selectService(service);
 }
-/*ADMIN LOGIN*/
-document.getElementById("loginForm").addEventListener("submit", e => {
+
+/* ---------- Admin login & navigation ---------- */
+$("loginForm").addEventListener("submit", e => {
     e.preventDefault();
-    const user = document.getElementById("loginUsername").value.trim();
-    const pass = document.getElementById("loginPassword").value.trim();
+    const user = $("loginUsername").value.trim();
+    const pass = $("loginPassword").value.trim();
 
     if ((user === "admin" || user === "administrator") && pass === "admin123") {
         sessionStorage.setItem("pecana_admin_logged_in", "true");
-        document.getElementById("loginPage").classList.add("hidden");
-        document.getElementById("publicApp").classList.add("hidden");
-        document.getElementById("adminApp").classList.remove("hidden");
+        showView("adminApp");
         openAdminPage("dashboard");
     } else {
         alert("Invalid login.");
     }
 });
-/*ADMIN NAVIGATION */
-const pageNames = {
-    dashboard: "Dashboard",
-    appointments: "Appointment Management",
-    addAppointment: "Create Appointment",
-    appointmentQueue: "Appointment Queue",
-    walkinQueue: "Walk-In Queue",
-    patients: "Patient Records",
-    addPatient: "Add Patient",
-    schedule: "Daily Schedule",
-    inventory: "Inventory",
-    forecast: "Restock Forecast",
-    reports: "Reports"
-};
 
-const PAGE_RENDERERS = {
-    dashboard: () => renderDashboard(),
-    appointments: () => renderAppointments(),
-    appointmentQueue: () => renderAppointmentQueue(),
-    walkinQueue: () => renderWalkinQueue(),
-    patients: () => renderPatients(),
-    schedule: () => renderSchedule(),
-    inventory: () => renderInventory(),
-    forecast: () => renderForecast(),
-    reports: () => renderReports()
+const PAGES = {
+    dashboard:        { title: "Dashboard",              render: () => renderDashboard() },
+    appointments:     { title: "Appointment Management", render: () => renderAppointments() },
+    appointmentQueue: { title: "Appointment Queue",      render: () => renderAppointmentQueue() },
+    walkinQueue:      { title: "Walk-In Queue",          render: () => renderWalkinQueue() },
+    patients:         { title: "Patient Records",        render: () => renderPatients() },
+    schedule:         { title: "Daily Schedule",         render: () => renderSchedule() },
+    inventory:        { title: "Inventory",              render: () => renderInventory() },
+    forecast:         { title: "Restock Forecast",       render: () => renderForecast() },
+    reports:          { title: "Reports",                render: () => renderReports() }
 };
 
 let currentAdminPage = "dashboard";
 
-document.querySelectorAll(".side-link[data-page]").forEach(btn => {
-    btn.addEventListener("click", () => openAdminPage(btn.dataset.page));
-});
+document.querySelectorAll(".side-link[data-page]").forEach(btn =>
+    btn.addEventListener("click", () => openAdminPage(btn.dataset.page)));
 
 function openAdminPage(page) {
-    if (page === "addAppointment") return openAppointmentModal();
-
-    const target = document.getElementById(`page-${page}`);
+    const target = $(`page-${page}`);
     if (!target) return;
 
     currentAdminPage = page;
@@ -352,37 +323,37 @@ function openAdminPage(page) {
 
     document.querySelectorAll(".admin-page").forEach(el => el.classList.toggle("active", el === target));
     document.querySelectorAll(".side-link[data-page]").forEach(el => el.classList.toggle("active", el.dataset.page === page));
-    document.getElementById("pageTitle").textContent = pageNames[page] || "Dashboard";
-
-    const calBtn = document.getElementById("advanceScheduleBtn");
-    if (calBtn) calBtn.classList.toggle("hidden", page !== "schedule");
+    $("pageTitle").textContent = PAGES[page]?.title || "Dashboard";
 
     renderAll();
 }
 
 function renderAll() {
     syncAppointmentQueue();
-    PAGE_RENDERERS[currentAdminPage]?.();
+    PAGES[currentAdminPage]?.render();
     renderAppointmentPatients();
     renderPublicQueues();
     updateAdminNotifications();
     updatePatientNotifications();
     if (currentAdminPage !== "forecast") renderForecastSummary();
 }
-/*MATERIAL STEPPER*/
+
+/* ---------- Material stepper (appointment / walk-in / approval) ---------- */
+const adjustments = { appointment: {}, walkin: {}, approval: {} };
+
 const MATERIAL_SCOPES = {
-    appointment: { items: () => temporaryMaterialAdjustments, list: "predictionList", badge: "stockStatusBadge" },
-    walkin:      { items: () => temporaryWalkinAdjustments,   list: "walkinPredictionList", badge: "walkinStockStatusBadge" },
-    approval:    { items: () => temporaryApprovalAdjustments, list: "approvalPredictionList", badge: "approvalStockStatusBadge" }
+    appointment: { select: "adminAppointmentService", card: "materialInsightCard",       list: "predictionList",         badge: "stockStatusBadge" },
+    walkin:      { select: "walkinService",           card: "walkinMaterialInsightCard", list: "walkinPredictionList",   badge: "walkinStockStatusBadge" },
+    approval:    {                                                                        list: "approvalPredictionList", badge: "approvalStockStatusBadge" }
 };
 
 function renderMaterialScope(scope) {
     const cfg = MATERIAL_SCOPES[scope];
-    const list = document.getElementById(cfg.list);
+    const list = $(cfg.list);
     if (!list) return;
     let allOk = true;
 
-    list.innerHTML = Object.entries(cfg.items()).map(([name, qty]) => {
+    list.innerHTML = Object.entries(adjustments[scope]).map(([name, qty]) => {
         const stock = inventory.find(i => i.name === name)?.stock ?? 0;
         const low = stock < qty;
         if (low) allOk = false;
@@ -400,11 +371,10 @@ function renderMaterialScope(scope) {
             </div>`;
     }).join("");
 
-    const badge = document.getElementById(cfg.badge);
+    const badge = $(cfg.badge);
     if (badge) {
         badge.textContent = allOk ? "Stock Verified" : "Shortage Detected";
         badge.className = `insight-badge ${allOk ? "success" : "danger"}`;
-        badge.removeAttribute("style");
     }
 }
 
@@ -412,275 +382,314 @@ document.addEventListener("click", e => {
     const btn = e.target.closest(".qty-btn[data-scope]");
     if (!btn) return;
     const { scope, name, delta } = btn.dataset;
-    const items = MATERIAL_SCOPES[scope].items();
-    items[name] = Math.max(0, (items[name] || 0) + Number(delta));
+    adjustments[scope][name] = Math.max(0, (adjustments[scope][name] || 0) + Number(delta));
     renderMaterialScope(scope);
 });
 
-function renderAdjustmentList()         { renderMaterialScope("appointment"); }
-function renderWalkinAdjustmentList()   { renderMaterialScope("walkin"); }
-function renderApprovalAdjustmentList() { renderMaterialScope("approval"); }
-
-function updateMaterialPrediction() {
-    const service = document.getElementById("adminAppointmentService").value;
-    const card = document.getElementById("materialInsightCard");
+/* Called when the service <select> changes in the appointment / walk-in modal */
+function updateMaterialPrediction(scope) {
+    const cfg = MATERIAL_SCOPES[scope];
+    const card = $(cfg.card);
     if (!card) return;
 
-    const materials = BOM[service];
-    if (materials && Object.keys(materials).length > 0) {
+    const materials = BOM[$(cfg.select).value];
+    if (materials && Object.keys(materials).length) {
         card.classList.remove("hidden");
-        temporaryMaterialAdjustments = { ...materials };
-        renderAdjustmentList();
+        adjustments[scope] = { ...materials };
+        renderMaterialScope(scope);
     } else {
         card.classList.add("hidden");
-        temporaryMaterialAdjustments = {};
+        adjustments[scope] = {};
     }
 }
 
-function updateWalkinMaterialPrediction() {
-    const service = document.getElementById("walkinService").value;
-    const card = document.getElementById("walkinMaterialInsightCard");
-    if (!card) return;
-
-    const materials = BOM[service];
-    if (materials && Object.keys(materials).length > 0) {
-        card.classList.remove("hidden");
-        temporaryWalkinAdjustments = { ...materials };
-        renderWalkinAdjustmentList();
-    } else {
-        card.classList.add("hidden");
-        temporaryWalkinAdjustments = {};
-    }
-}
-/*SCHEDULE VALIDATION*/
+/* ---------- Schedule validation ---------- */
 const CLINIC_OPEN_MIN = 7 * 60;
 const CLINIC_CLOSE_MIN = 20 * 60;
 const LUNCH_START_MIN = 12 * 60;
 const LUNCH_END_MIN = 13 * 60;
-
 const TIME_RANGE_MESSAGE = "Please choose a time between 7:00 AM and 8:00 PM — that's when the clinic is open.";
 
-const validateClinicSchedule = (dateStr, timeStr, dateInput, timeInput) => {
-    if (dateInput) dateInput.setCustomValidity("");
-    if (timeInput) timeInput.setCustomValidity("");
+function validateClinicSchedule(dateValue, timeValue, dateInput, timeInput) {
+    dateInput?.setCustomValidity("");
+    timeInput?.setCustomValidity("");
+
+    const fail = (el, msg) => {
+        if (el) { el.setCustomValidity(msg); el.reportValidity(); }
+        return false;
+    };
 
     const now = new Date();
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const [hour, minute] = timeStr.split(":").map(Number);
+    const [year, month, day] = dateValue.split("-").map(Number);
+    const [hour, minute] = timeValue.split(":").map(Number);
 
-    const selectedDate = new Date(year, month - 1, day, hour, minute);
-    const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const selectedAtMidnight = new Date(year, month - 1, day);
+    const selected = new Date(year, month - 1, day, hour, minute);
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedMidnight = new Date(year, month - 1, day);
 
-    if (selectedAtMidnight < todayAtMidnight) {
-        if (dateInput) {
-            dateInput.setCustomValidity("Please choose today's date or a later one — the date you selected has already passed.");
-            dateInput.reportValidity();
-        }
-        return false;
-    }
+    if (selectedMidnight < todayMidnight)
+        return fail(dateInput, "Please choose today's date or a later one — the date you selected has already passed.");
 
-    if (selectedAtMidnight.getTime() === todayAtMidnight.getTime() && selectedDate <= now) {
-        if (timeInput) {
-            timeInput.setCustomValidity("That time has already passed for today. Please choose a later time.");
-            timeInput.reportValidity();
-        }
-        return false;
-    }
+    if (selectedMidnight.getTime() === todayMidnight.getTime() && selected <= now)
+        return fail(timeInput, "That time has already passed for today. Please choose a later time.");
 
-    const totalMinutes = hour * 60 + minute;
-    if (totalMinutes < CLINIC_OPEN_MIN || totalMinutes >= CLINIC_CLOSE_MIN) {
-        if (timeInput) {
-            timeInput.setCustomValidity(TIME_RANGE_MESSAGE);
-            timeInput.reportValidity();
-        }
-        return false;
-    }
+    const total = hour * 60 + minute;
+    if (total < CLINIC_OPEN_MIN || total >= CLINIC_CLOSE_MIN) return fail(timeInput, TIME_RANGE_MESSAGE);
 
-    if (totalMinutes >= LUNCH_START_MIN && totalMinutes < LUNCH_END_MIN) {
-        if (timeInput) {
-            timeInput.setCustomValidity("The clinic is closed for lunch break from 12:00 PM to 1:00 PM. Please choose another time.");
-            timeInput.reportValidity();
-        }
-        return false;
-    }
+    if (total >= LUNCH_START_MIN && total < LUNCH_END_MIN)
+        return fail(timeInput, "The clinic is closed for lunch break from 12:00 PM to 1:00 PM. Please choose another time.");
 
     return true;
-};
+}
 
-function attachTimeFieldMessage(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
+function setupScheduleFields(dateId, timeId) {
+    const dateEl = $(dateId);
+    const timeEl = $(timeId);
 
-    el.addEventListener("invalid", () => {
-        if (el.validity.customError) return;
-        if (el.validity.rangeUnderflow || el.validity.rangeOverflow) {
-            el.setCustomValidity(TIME_RANGE_MESSAGE);
-        } else if (el.validity.valueMissing) {
-            el.setCustomValidity("Please choose a time.");
-        }
+    const clear = () => { dateEl.setCustomValidity(""); timeEl.setCustomValidity(""); };
+    [dateEl, timeEl].forEach(el => { el.addEventListener("input", clear); el.addEventListener("change", clear); });
+
+    timeEl.addEventListener("invalid", () => {
+        if (timeEl.validity.customError) return;
+        if (timeEl.validity.rangeUnderflow || timeEl.validity.rangeOverflow) timeEl.setCustomValidity(TIME_RANGE_MESSAGE);
+        else if (timeEl.validity.valueMissing) timeEl.setCustomValidity("Please choose a time.");
     });
 }
 
-function linkScheduleFields(dateId, timeId) {
-    const dateEl = document.getElementById(dateId);
-    const timeEl = document.getElementById(timeId);
-    const clear = () => {
-        if (dateEl) dateEl.setCustomValidity("");
-        if (timeEl) timeEl.setCustomValidity("");
-    };
-    [dateEl, timeEl].forEach(el => {
-        if (!el) return;
-        el.addEventListener("input", clear);
-        el.addEventListener("change", clear);
-    });
+/* ---------- Admin: create appointment ---------- */
+const patientOptions = () =>
+    `<option value="">Select patient</option>` +
+    patients.map(p => `<option value="${p.id}">${esc(p.name)} (${p.id})</option>`).join("");
+
+function renderAppointmentPatients() {
+    const select = $("adminAppointmentPatient");
+    if (!select) return;
+    const selected = select.value;
+    select.innerHTML = patientOptions();
+    if (patients.some(p => p.id === selected)) select.value = selected;
 }
-/*ADMIN: CREATE APPOINTMENT*/
+
 function openAppointmentModal() {
     renderAppointmentPatients();
-    document.getElementById("adminAppointmentDate").value = today();
-    document.getElementById("appointmentModal").classList.remove("hidden");
+    $("adminAppointmentDate").value = today();
+    openModal("appointmentModal");
 }
 
 function closeAppointmentModal() {
-    document.getElementById("appointmentModal").classList.add("hidden");
-    document.getElementById("adminAppointmentForm").reset();
-    document.getElementById("materialInsightCard").classList.add("hidden");
-    temporaryMaterialAdjustments = {};
+    closeModal("appointmentModal");
+    $("adminAppointmentForm").reset();
+    $("materialInsightCard").classList.add("hidden");
+    adjustments.appointment = {};
 }
 
 function createAppointmentFor(id) {
     openAppointmentModal();
-    const patientDropdown = document.getElementById("adminAppointmentPatient");
-    if (patientDropdown) patientDropdown.value = id;
+    $("adminAppointmentPatient").value = id;
 }
 
-function renderAppointmentPatients() {
-    const select = document.getElementById("adminAppointmentPatient");
-    if (!select) return;
-    const selected = select.value;
-    select.innerHTML = `<option value="">Select patient</option>` +
-        patients.map(p => `<option value="${p.id}">${esc(p.name)} (${p.id})</option>`).join("");
-    if (patients.some(p => p.id === selected)) select.value = selected;
-}
+$("adminAppointmentForm").addEventListener("submit", e => {
+    e.preventDefault();
 
-const adminForm = document.getElementById("adminAppointmentForm");
-if (adminForm) {
-    adminForm.addEventListener("submit", e => {
-        e.preventDefault();
+    const dateEl = $("adminAppointmentDate");
+    const timeEl = $("adminAppointmentTime");
+    const date = dateEl.value;
+    const time = timeEl.value;
 
-        const dateEl = document.getElementById("adminAppointmentDate");
-        const timeEl = document.getElementById("adminAppointmentTime");
-        const date = dateEl.value;
-        const time = timeEl.value;
-        const patientId = document.getElementById("adminAppointmentPatient").value;
-        const service = document.getElementById("adminAppointmentService").value;
+    if (!validateClinicSchedule(date, time, dateEl, timeEl)) return;
 
-        if (!validateClinicSchedule(date, time, dateEl, timeEl)) return;
+    const patient = patients.find(p => p.id === $("adminAppointmentPatient").value);
+    if (!patient) { alert("Please select a patient."); return; }
 
-        const patient = patients.find(p => p.id === patientId);
-        if (!patient) { alert("Please select a patient."); return; }
+    const appointment = {
+        id: nextId("APT", appointments),
+        patientId: patient.id,
+        patientName: patient.name,
+        date,
+        time,
+        service: $("adminAppointmentService").value,
+        status: "Pending",
+        queueStatus: null,
+        customMaterials: { ...adjustments.appointment }
+    };
 
-        const appointment = {
-            id: nextId("APT", appointments),
-            patientId: patient.id,
-            patientName: patient.name,
-            date,
-            time,
-            service,
-            status: "Pending",
-            queueStatus: null,
-            customMaterials: { ...temporaryMaterialAdjustments }
-        };
+    appointments.push(appointment);
+    save(STORAGE.appointments, appointments);
 
-        appointments.push(appointment);
-        save(STORAGE.appointments, appointments);
+    alert("Appointment created successfully for " + appointment.patientName);
+    closeAppointmentModal();
+    renderAll();
+});
 
-        alert("Appointment created successfully for " + appointment.patientName);
-        closeAppointmentModal();
-        renderAll();
-    });
-}
-
-
-/*ADMIN: EDIT APPOINTMENT*/
+/* ---------- Admin: edit appointment ---------- */
 function openEditAppointmentModal(id) {
     const a = appointments.find(x => x.id === id);
     if (!a) return;
 
-    const dateEl = document.getElementById("editAppointmentDate");
-    const timeEl = document.getElementById("editAppointmentTime");
+    const dateEl = $("editAppointmentDate");
+    const timeEl = $("editAppointmentTime");
 
-    document.getElementById("editAppointmentId").value = a.id;
-    document.getElementById("editAppointmentPatientName").value = a.patientName;
+    $("editAppointmentId").value = a.id;
+    $("editAppointmentPatientName").value = a.patientName;
     dateEl.value = a.date;
     dateEl.min = today();
     timeEl.value = a.time;
-
     dateEl.setCustomValidity("");
     timeEl.setCustomValidity("");
 
-    document.getElementById("editAppointmentModal").classList.remove("hidden");
+    openModal("editAppointmentModal");
 }
 
 function closeEditAppointmentModal() {
-    document.getElementById("editAppointmentModal").classList.add("hidden");
-    document.getElementById("editAppointmentForm").reset();
-    document.getElementById("editAppointmentDate").setCustomValidity("");
-    document.getElementById("editAppointmentTime").setCustomValidity("");
+    closeModal("editAppointmentModal");
+    $("editAppointmentForm").reset();
+    $("editAppointmentDate").setCustomValidity("");
+    $("editAppointmentTime").setCustomValidity("");
 }
 
-const editAppointmentForm = document.getElementById("editAppointmentForm");
-if (editAppointmentForm) {
-    editAppointmentForm.addEventListener("submit", e => {
-        e.preventDefault();
-
-        const id = document.getElementById("editAppointmentId").value;
-        const dateEl = document.getElementById("editAppointmentDate");
-        const timeEl = document.getElementById("editAppointmentTime");
-        const newDate = dateEl.value;
-        const newTime = timeEl.value;
-
-        if (!validateClinicSchedule(newDate, newTime, dateEl, timeEl)) return;
-
-        const a = appointments.find(x => x.id === id);
-        if (!a) return;
-
-        if (a.date !== newDate || a.time !== newTime) a.rescheduled = true;
-
-        a.date = newDate;
-        a.time = newTime;
-
-        const q = appointmentQueue.find(x => x.appointmentId === id);
-        if (q) { q.date = newDate; q.time = newTime; }
-
-        save(STORAGE.appointments, appointments);
-        save(STORAGE.appointmentQueue, appointmentQueue);
-
-        closeEditAppointmentModal();
-        alert("Appointment updated successfully.");
-        renderAll();
-    });
-}
-
-
-/*PATIENTS*/
-document.getElementById("patientForm").addEventListener("submit", e => {
+$("editAppointmentForm").addEventListener("submit", e => {
     e.preventDefault();
 
-    const name = document.getElementById("patientName").value.trim();
-    if (!name) { alert("Please enter the patient's name."); return; }
+    const dateEl = $("editAppointmentDate");
+    const timeEl = $("editAppointmentTime");
+    const newDate = dateEl.value;
+    const newTime = timeEl.value;
 
-    const duplicate = patients.some(p => p.name.toLowerCase() === name.toLowerCase());
-    if (duplicate) { alert("This patient is already registered."); return; }
+    if (!validateClinicSchedule(newDate, newTime, dateEl, timeEl)) return;
+
+    const id = $("editAppointmentId").value;
+    const a = appointments.find(x => x.id === id);
+    if (!a) return;
+
+    if (a.date !== newDate || a.time !== newTime) a.rescheduled = true;
+    a.date = newDate;
+    a.time = newTime;
+
+    const q = appointmentQueue.find(x => x.appointmentId === id);
+    if (q) { q.date = newDate; q.time = newTime; }
+
+    save(STORAGE.appointments, appointments);
+    save(STORAGE.appointmentQueue, appointmentQueue);
+
+    closeEditAppointmentModal();
+    alert("Appointment updated successfully.");
+    renderAll();
+});
+
+/* ---------- Row selection (bulk delete) ---------- */
+const selection = { appointment: new Set(), patient: new Set() };
+const lastPicked = { appointment: null, patient: null };
+
+const SELECT_CFG = {
+    appointment: { bar: "apptBulkBar",    count: "apptBulkCount",    allBtn: "apptBulkAll",    all: "apptSelectAll",    body: "appointmentTable" },
+    patient:     { bar: "patientBulkBar", count: "patientBulkCount", allBtn: "patientBulkAll", all: "patientSelectAll", body: "patientTable" }
+};
+
+const rowCheckCell = (type, id) =>
+    `<td class="chk-col"><input type="checkbox" class="row-check" data-id="${id}" ${selection[type].has(id) ? "checked" : ""}></td>`;
+
+const pruneSelection = (type, visibleIds) => {
+    const visible = new Set(visibleIds);
+    selection[type] = new Set([...selection[type]].filter(id => visible.has(id)));
+};
+
+function setSelected(type, id, on) {
+    if (!id) return;
+    on ? selection[type].add(id) : selection[type].delete(id);
+}
+
+function syncSelectionUI(type) {
+    const cfg = SELECT_CFG[type];
+    const set = selection[type];
+    const body = $(cfg.body);
+    if (!body) return;
+
+    const boxes = body.querySelectorAll(".row-check");
+    const total = boxes.length;
+
+    boxes.forEach(b => b.closest("tr")?.classList.toggle("row-selected", b.checked));
+
+    const all = $(cfg.all);
+    if (all) {
+        all.checked = total > 0 && set.size === total;
+        all.indeterminate = set.size > 0 && set.size < total;
+    }
+
+    $(cfg.bar)?.classList.toggle("hidden", set.size === 0);
+    if ($(cfg.count)) $(cfg.count).textContent = set.size;
+
+    const allBtn = $(cfg.allBtn);
+    if (allBtn) {
+        allBtn.textContent = `Select all ${total}`;
+        allBtn.classList.toggle("hidden", set.size >= total);
+    }
+}
+
+function toggleSelectAll(type, checked) {
+    document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`).forEach(b => {
+        b.checked = checked;
+        setSelected(type, b.dataset.id, checked);
+    });
+    syncSelectionUI(type);
+}
+
+function clearSelection(type) {
+    selection[type].clear();
+    lastPicked[type] = null;
+    document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`).forEach(b => { b.checked = false; });
+    syncSelectionUI(type);
+}
+
+function pickRow(type, cb, shift) {
+    const boxes = [...document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`)];
+    const idx = boxes.indexOf(cb);
+    const want = cb.checked;
+
+    if (shift && lastPicked[type] !== null && boxes[lastPicked[type]]) {
+        const [from, to] = [lastPicked[type], idx].sort((a, b) => a - b);
+        for (let i = from; i <= to; i++) {
+            boxes[i].checked = want;
+            setSelected(type, boxes[i].dataset.id, want);
+        }
+    } else {
+        setSelected(type, cb.dataset.id, want);
+    }
+
+    lastPicked[type] = idx;
+    syncSelectionUI(type);
+}
+
+Object.entries(SELECT_CFG).forEach(([type, cfg]) => {
+    const body = $(cfg.body);
+    body.addEventListener("mousedown", e => { if (e.shiftKey) e.preventDefault(); });
+    body.addEventListener("click", e => {
+        const direct = e.target.closest(".row-check");
+        if (direct) { pickRow(type, direct, e.shiftKey); return; }
+
+        if (e.target.closest("button, a, input, label, select")) return;
+        if (String(window.getSelection?.() || "").length) return;
+
+        const cb = e.target.closest("tr")?.querySelector(".row-check");
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        pickRow(type, cb, e.shiftKey);
+    });
+});
+
+/* ---------- Patients ---------- */
+$("patientForm").addEventListener("submit", e => {
+    e.preventDefault();
+
+    const name = $("patientName").value.trim();
+    if (!name) { alert("Please enter the patient's name."); return; }
+    if (patients.some(p => p.name.toLowerCase() === name.toLowerCase())) { alert("This patient is already registered."); return; }
 
     const patient = {
         id: nextId("P", patients),
         name,
-        contact: document.getElementById("patientContact").value.trim(),
-        dob: document.getElementById("patientDOB").value,
-        gender: document.getElementById("patientGender").value,
-        address: document.getElementById("patientAddress").value.trim(),
+        contact: $("patientContact").value.trim(),
+        dob: $("patientDOB").value,
+        gender: $("patientGender").value,
+        address: $("patientAddress").value.trim(),
         status: "Active"
     };
 
@@ -695,41 +704,34 @@ document.getElementById("patientForm").addEventListener("submit", e => {
 function viewPatient(id) {
     const p = patients.find(x => x.id === id);
     if (!p) return;
-    document.getElementById("patientDetails").innerHTML = `
+    const field = (label, value) => `<div><strong>${label}</strong>${value}</div>`;
+    $("patientDetails").innerHTML = `
         <div class="patient-detail">
-            <div><strong>Patient ID</strong>${esc(p.id)}</div>
-            <div><strong>Full Name</strong>${esc(p.name)}</div>
-            <div><strong>Contact</strong>${esc(p.contact)}</div>
-            <div><strong>Email Address</strong>${esc(p.email || "-")}</div>
-            <div><strong>Date of Birth</strong>${formatDate(p.dob)}</div>
-            <div><strong>Gender</strong>${esc(p.gender || "-")}</div>
-            <div><strong>Address</strong>${esc(p.address || "-")}</div>
-            <div><strong>Emergency Contact</strong>${esc(p.emergency || "-")}</div>
-            <div><strong>Dental Concern</strong>${esc(p.concern || "-")}</div>
-        </div>
-    `;
-    document.getElementById("patientModal").classList.remove("hidden");
+            ${field("Patient ID", esc(p.id))}
+            ${field("Full Name", esc(p.name))}
+            ${field("Contact", esc(p.contact))}
+            ${field("Email Address", esc(p.email || "-"))}
+            ${field("Date of Birth", formatDate(p.dob))}
+            ${field("Gender", esc(p.gender || "-"))}
+            ${field("Address", esc(p.address || "-"))}
+            ${field("Emergency Contact", esc(p.emergency || "-"))}
+            ${field("Dental Concern", esc(p.concern || "-"))}
+        </div>`;
+    openModal("patientModal");
 }
 
-function openAddPatientModal() {
-    document.getElementById("addPatientModal").classList.remove("hidden");
-}
+const openAddPatientModal = () => openModal("addPatientModal");
 
 function closeAddPatientModal() {
-    document.getElementById("addPatientModal").classList.add("hidden");
-    document.getElementById("patientForm").reset();
-}
-
-function closePatientModal() {
-    document.getElementById("patientModal").classList.add("hidden");
+    closeModal("addPatientModal");
+    $("patientForm").reset();
 }
 
 function renderPatients() {
-    const table = document.getElementById("patientTable");
+    const table = $("patientTable");
     if (!table) return;
 
-    const searchInput = document.getElementById("patientSearch");
-    const filter = searchInput ? searchInput.value.toLowerCase() : "";
+    const filter = ($("patientSearch")?.value || "").toLowerCase();
 
     if (!patients.length) {
         selection.patient.clear();
@@ -738,13 +740,10 @@ function renderPatients() {
         return;
     }
 
-    const filtered = patients.filter(p =>
-        p.name.toLowerCase().includes(filter) || p.id.toLowerCase().includes(filter)
-    );
+    const filtered = patients.filter(p => p.name.toLowerCase().includes(filter) || p.id.toLowerCase().includes(filter));
+    pruneSelection("patient", filtered.map(p => p.id));
 
-    selection.patient = new Set([...selection.patient].filter(id => filtered.some(p => p.id === id)));
-
-    if (filtered.length === 0 && filter !== "") {
+    if (!filtered.length && filter) {
         table.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:#888;">No results found for "${esc(filter)}"</td></tr>`;
         syncSelectionUI("patient");
         return;
@@ -754,14 +753,10 @@ function renderPatients() {
         const concern = p.concern || "-";
         const isLong = concern.length > 40;
         const shortConcern = isLong ? concern.slice(0, 40).trim() + "…" : concern;
-        const checked = selection.patient.has(p.id);
 
         return `
-        <tr class="${checked ? "row-selected" : ""}">
-            <td class="chk-col">
-                <input type="checkbox" class="row-check" ${checked ? "checked" : ""}
-                       onchange="toggleRowSelect('patient','${p.id}',this.checked)">
-            </td>
+        <tr class="${selection.patient.has(p.id) ? "row-selected" : ""}">
+            ${rowCheckCell("patient", p.id)}
             <td>${p.id}</td>
             <td><strong>${esc(p.name)}</strong></td>
             <td>${esc(p.contact)}</td>
@@ -782,14 +777,13 @@ function renderPatients() {
     syncSelectionUI("patient");
 }
 
-
-/*APPOINTMENT LIST*/
+/* ---------- Appointment list ---------- */
 function renderAppointments() {
-    const table = document.getElementById("appointmentTable");
+    const table = $("appointmentTable");
     if (!table) return;
 
-    const searchInput = document.getElementById("appointmentSearch");
-    const filter = searchInput ? searchInput.value.toLowerCase() : "";
+    const filter = ($("appointmentSearch")?.value || "").toLowerCase();
+    const t = today();
 
     if (!appointments.length) {
         selection.appointment.clear();
@@ -799,45 +793,29 @@ function renderAppointments() {
     }
 
     const filtered = appointments.filter(a => {
-        const matchesSearch = a.patientName.toLowerCase().includes(filter) ||
-                              a.id.toLowerCase().includes(filter);
-        if (!matchesSearch) return false;
-        if (a.date < today()) return false;
-        if (a.status === "Completed" || a.status === "No-show") return a.date === today();
+        if (!a.patientName.toLowerCase().includes(filter) && !a.id.toLowerCase().includes(filter)) return false;
+        if (a.date < t) return false;
+        if (a.status === "Completed" || a.status === "No-show") return a.date === t;
         return true;
     });
 
     const statusPriority = { "Pending": 0, "Approved": 1, "Completed": 2, "No-show": 2 };
-
     const sorted = [...filtered].sort((a, b) => {
-        const aIsFuture = a.date > today() ? 1 : 0;
-        const bIsFuture = b.date > today() ? 1 : 0;
-        if (aIsFuture !== bIsFuture) return aIsFuture - bIsFuture;
+        const futureDiff = (a.date > t ? 1 : 0) - (b.date > t ? 1 : 0);
+        if (futureDiff) return futureDiff;
 
-        const rankA = statusPriority[a.status] ?? 3;
-        const rankB = statusPriority[b.status] ?? 3;
-        if (rankA !== rankB) return rankA - rankB;
+        const rankDiff = (statusPriority[a.status] ?? 3) - (statusPriority[b.status] ?? 3);
+        if (rankDiff) return rankDiff;
 
-        const keyA = `${a.date} ${a.time || "00:00"}`;
-        const keyB = `${b.date} ${b.time || "00:00"}`;
-        return keyA.localeCompare(keyB);
+        return `${a.date} ${a.time || "00:00"}`.localeCompare(`${b.date} ${b.time || "00:00"}`);
     });
 
-    selection.appointment = new Set([...selection.appointment].filter(id => sorted.some(a => a.id === id)));
+    pruneSelection("appointment", sorted.map(a => a.id));
 
-    const dailyCounters = {};
-    table.innerHTML = sorted.map(a => {
-        dailyCounters[a.date] = (dailyCounters[a.date] || 0) + 1;
-        const displayNo = "APT" + String(dailyCounters[a.date]).padStart(3, "0");
-        const checked = selection.appointment.has(a.id);
-
-        return `
-        <tr class="${checked ? "row-selected" : ""}">
-            <td class="chk-col">
-                <input type="checkbox" class="row-check" ${checked ? "checked" : ""}
-                       onchange="toggleRowSelect('appointment','${a.id}',this.checked)">
-            </td>
-            <td>${displayNo}</td>
+    table.innerHTML = withDailyNumbers(sorted, "APT").map(a => `
+        <tr class="${selection.appointment.has(a.id) ? "row-selected" : ""}">
+            ${rowCheckCell("appointment", a.id)}
+            <td>${a.displayNo}</td>
             <td><strong>${esc(a.patientName)}</strong></td>
             <td>${formatDate(a.date)}</td>
             <td>${formatTime(a.time)}</td>
@@ -845,79 +823,67 @@ function renderAppointments() {
             <td><span class="badge ${statusClass(a.status)}">${a.status}</span></td>
             <td>
                 ${a.status === "Pending" ? `
-                    ${a.date <= today()
+                    ${a.date <= t
                         ? `<button class="action-btn success" onclick="approveAppointment('${a.id}')">Approve</button>`
-                        : `<span style="font-size:.75rem;color:#9aa0a6;">Approvable on ${formatDate(a.date)}</span>`
-                    }
-                    <button class="action-btn warning" onclick="openEditAppointmentModal('${a.id}')">Edit</button>
-                ` : ""}
-
+                        : `<span style="font-size:.75rem;color:#9aa0a6;">Approvable on ${formatDate(a.date)}</span>`}
+                    <button class="action-btn warning" onclick="openEditAppointmentModal('${a.id}')">Edit</button>` : ""}
                 ${a.status === "Approved" ? `<button class="action-btn primary" onclick="openAdminPage('appointmentQueue')">Queue</button>` : ""}
             </td>
-        </tr>`;
-    }).join("");
+        </tr>`).join("");
 
     syncSelectionUI("appointment");
 }
 
+/* ---------- Public booking form ---------- */
+$("appointmentForm").addEventListener("submit", e => {
+    e.preventDefault();
 
-/*PUBLIC BOOKING FORM*/
-const publicForm = document.getElementById("appointmentForm");
-if (publicForm) {
-    publicForm.addEventListener("submit", e => {
-        e.preventDefault();
+    const dateEl = $("bookingDate");
+    const timeEl = $("bookingTime");
+    const date = dateEl.value;
+    const time = timeEl.value;
+    const name = $("bookingName").value.trim();
+    const contact = $("bookingContact").value.trim();
+    const email = $("bookingEmail").value.trim();
+    const address = $("bookingAddress").value.trim();
+    const dob = $("bookingDOB").value;
+    const service = $("bookingService").value;
+    const concern = $("bookingConcern").value.trim();
 
-        const dateEl = document.getElementById("bookingDate");
-        const timeEl = document.getElementById("bookingTime");
-        const date = dateEl.value;
-        const time = timeEl.value;
-        const name = document.getElementById("bookingName").value.trim();
-        const contact = document.getElementById("bookingContact").value.trim();
-        const email = document.getElementById("bookingEmail") ? document.getElementById("bookingEmail").value.trim() : "";
-        const address = document.getElementById("bookingAddress") ? document.getElementById("bookingAddress").value.trim() : "";
-        const dob = document.getElementById("bookingDOB") ? document.getElementById("bookingDOB").value : "";
-        const service = document.getElementById("bookingService").value;
-        const concern = document.getElementById("bookingConcern").value.trim();
+    if (!validateClinicSchedule(date, time, dateEl, timeEl)) return;
 
-        if (!validateClinicSchedule(date, time, dateEl, timeEl)) return;
+    let patient = patients.find(p => p.name.toLowerCase() === name.toLowerCase());
+    if (!patient) {
+        patient = { id: nextId("P", patients), name, contact, email, dob, address, gender: "", emergency: "", concern, status: "Active" };
+        patients.push(patient);
+    } else {
+        if (contact && !patient.contact) patient.contact = contact;
+        if (email && !patient.email) patient.email = email;
+        if (address && !patient.address) patient.address = address;
+        if (dob && !patient.dob) patient.dob = dob;
+    }
+    save(STORAGE.patients, patients);
 
-        let patient = patients.find(p => p.name.toLowerCase() === name.toLowerCase());
-        if (!patient) {
-            patient = {
-                id: nextId("P", patients),
-                name, contact, email, dob, address, gender: "", emergency: "", concern, status: "Active"
-            };
-            patients.push(patient);
-        } else {
-            if (contact && !patient.contact) patient.contact = contact;
-            if (email && !patient.email) patient.email = email;
-            if (address && !patient.address) patient.address = address;
-            if (dob && !patient.dob) patient.dob = dob;
-        }
-        save(STORAGE.patients, patients);
-
-        const appointment = {
-            id: nextId("APT", appointments),
-            patientId: patient.id,
-            patientName: patient.name,
-            date, time, service, status: "Pending", queueStatus: null
-        };
-
-        appointments.push(appointment);
-        save(STORAGE.appointments, appointments);
-
-        e.target.reset();
-        alert("Appointment submitted successfully!");
-        showPublicPage("home");
-        renderAll();
+    appointments.push({
+        id: nextId("APT", appointments),
+        patientId: patient.id,
+        patientName: patient.name,
+        date, time, service,
+        status: "Pending",
+        queueStatus: null
     });
-}
+    save(STORAGE.appointments, appointments);
 
+    e.target.reset();
+    alert("Appointment submitted successfully!");
+    showPublicPage("home");
+    renderAll();
+});
 
-/*APPROVE APPOINTMENT*/
-function approveAppointment(id) {
-    openApproveDetailsModal(id);
-}
+/* ---------- Approve appointment ---------- */
+let pendingApprovalId = null;
+
+const approveAppointment = id => openApproveDetailsModal(id);
 
 function openApproveDetailsModal(id) {
     const a = appointments.find(x => x.id === id);
@@ -925,53 +891,46 @@ function openApproveDetailsModal(id) {
     const p = patients.find(x => x.id === a.patientId);
 
     pendingApprovalId = id;
-    temporaryApprovalAdjustments = { ...materialsFor(a) };
+    adjustments.approval = { ...materialsFor(a) };
 
-    document.getElementById("approveDetailsContent").innerHTML = `
-        <div><strong>Patient Name</strong>${esc(a.patientName)}</div>
-        <div><strong>Contact Number</strong>${esc(p && p.contact ? p.contact : "-")}</div>
-        <div><strong>Email Address</strong>${esc(p && p.email ? p.email : "-")}</div>
-        <div><strong>Address</strong>${esc(p && p.address ? p.address : "-")}</div>
-        <div><strong>Date</strong>${formatDate(a.date)}</div>
-        <div><strong>Time</strong>${formatTime(a.time)}</div>
-        <div><strong>Dental Service</strong>${esc(a.service)}</div>
-        <div><strong>Dental Concern</strong>${esc(a.concern || (p ? p.concern : "") || "-")}</div>
-    `;
+    const field = (label, value) => `<div><strong>${label}</strong>${esc(value)}</div>`;
+    const content = $("approveDetailsContent");
+    content.innerHTML = [
+        field("Patient Name", a.patientName),
+        field("Contact Number", p?.contact || "-"),
+        field("Email Address", p?.email || "-"),
+        field("Address", p?.address || "-"),
+        `<div><strong>Date</strong>${formatDate(a.date)}</div>`,
+        `<div><strong>Time</strong>${formatTime(a.time)}</div>`,
+        field("Dental Service", a.service),
+        field("Dental Concern", a.concern || p?.concern || "-")
+    ].join("");
 
-    if (Object.keys(temporaryApprovalAdjustments).length) {
-        const insightWrap = document.createElement("div");
-        insightWrap.style.gridColumn = "1 / -1";
-        insightWrap.className = "insight-card";
-        insightWrap.innerHTML = `
+    if (Object.keys(adjustments.approval).length) {
+        const insight = document.createElement("div");
+        insight.style.gridColumn = "1 / -1";
+        insight.className = "insight-card";
+        insight.innerHTML = `
             <div class="insight-header">
-                <div class="insight-title">
-                    <i class="fa-solid fa-microchip"></i>
-                    <span>Clinical Supply Insight</span>
-                </div>
+                <div class="insight-title"><i class="fa-solid fa-microchip"></i><span>Clinical Supply Insight</span></div>
                 <div class="insight-badge" id="approvalStockStatusBadge">Checking Stock...</div>
             </div>
-            <div class="insight-content">
-                <div id="approvalPredictionList" class="prediction-list"></div>
-            </div>
-        `;
-        document.getElementById("approveDetailsContent").appendChild(insightWrap);
-        renderApprovalAdjustmentList();
+            <div class="insight-content"><div id="approvalPredictionList" class="prediction-list"></div></div>`;
+        content.appendChild(insight);
+        renderMaterialScope("approval");
     }
 
-    document.getElementById("approveDetailsModal").classList.remove("hidden");
+    openModal("approveDetailsModal");
 }
 
 function closeApproveDetailsModal() {
-    document.getElementById("approveDetailsModal").classList.add("hidden");
+    closeModal("approveDetailsModal");
     pendingApprovalId = null;
-    temporaryApprovalAdjustments = {};
+    adjustments.approval = {};
 }
 
 function confirmApproveAppointment() {
-    const id = pendingApprovalId;
-    if (!id) { closeApproveDetailsModal(); return; }
-
-    const a = appointments.find(x => x.id === id);
+    const a = appointments.find(x => x.id === pendingApprovalId);
     if (!a) { closeApproveDetailsModal(); return; }
 
     if (a.date > today()) {
@@ -980,9 +939,7 @@ function confirmApproveAppointment() {
         return;
     }
 
-    if (Object.keys(temporaryApprovalAdjustments).length) {
-        a.customMaterials = { ...temporaryApprovalAdjustments };
-    }
+    if (Object.keys(adjustments.approval).length) a.customMaterials = { ...adjustments.approval };
 
     a.status = "Approved";
     a.queueStatus = "Waiting";
@@ -993,33 +950,41 @@ function confirmApproveAppointment() {
     renderAll();
 }
 
+/* ---------- Queue helpers ---------- */
+const queueActions = (q, kind) =>
+    q.status === "Waiting"
+        ? `<button class="action-btn primary" onclick="serve${kind}('${q.number}')">Serve</button><button class="action-btn danger" onclick="noShow${kind}('${q.number}')">No-show</button>`
+    : q.status === "Serving"
+        ? `<button class="action-btn success" onclick="complete${kind}('${q.number}')">Complete</button>`
+        : "";
 
-/*APPOINTMENT QUEUE*/
+const queueCard = (no, q, { time = false, actions = "" } = {}) => `
+    <div class="queue-card">
+        <div class="queue-number">${no}</div>
+        <div class="queue-details">
+            <h3>${esc(q.patientName)}</h3>
+            <p>${esc(q.service)}${time ? ` · ${formatTime(q.time)}` : ""}</p>
+            <span class="badge ${statusClass(q.status)}">${q.status}</span>
+        </div>
+        ${actions ? `<div class="queue-actions">${actions}</div>` : ""}
+    </div>`;
+
+const isActiveQueue = q => q.status === "Waiting" || q.status === "Serving";
+
+/* ---------- Appointment queue ---------- */
 function syncAppointmentQueue() {
     appointments.forEach(a => {
         let q = appointmentQueue.find(x => x.appointmentId === a.id);
 
         if (a.status === "Approved" && (a.queueStatus === "Waiting" || a.queueStatus === "Serving")) {
             if (!q) {
-                q = {
-                    number: nextQueue("A", appointmentQueue),
-                    appointmentId: a.id,
-                    patientId: a.patientId,
-                    patientName: a.patientName,
-                    service: a.service,
-                    time: a.time,
-                    date: a.date,
-                    status: a.queueStatus
-                };
+                q = { number: nextQueue("A", appointmentQueue), appointmentId: a.id };
                 appointmentQueue.push(q);
-            } else {
-                q.patientId = a.patientId;
-                q.patientName = a.patientName;
-                q.service = a.service;
-                q.time = a.time;
-                q.date = a.date;
-                q.status = a.queueStatus;
             }
+            Object.assign(q, {
+                patientId: a.patientId, patientName: a.patientName, service: a.service,
+                time: a.time, date: a.date, status: a.queueStatus
+            });
         }
 
         if (q) {
@@ -1031,111 +996,74 @@ function syncAppointmentQueue() {
 }
 
 function renderAppointmentQueue() {
-    const container = document.getElementById("appointmentQueueContainer");
+    const container = $("appointmentQueueContainer");
     if (!container) return;
 
     syncAppointmentQueue();
-    const queues = appointmentQueue.filter(q => q.status === "Waiting" || q.status === "Serving");
+    const queues = appointmentQueue.filter(isActiveQueue);
 
     if (!queues.length) {
         container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-calendar-check"></i><strong>No appointment patients waiting.</strong><p>Approved appointments will appear here automatically.</p></div>`;
         return;
     }
 
-    const dailyCounters = {};
-    container.innerHTML = queues.map(q => {
-        dailyCounters[q.date] = (dailyCounters[q.date] || 0) + 1;
-        const displayNo = "A" + String(dailyCounters[q.date]).padStart(3, "0");
-        return `
-        <div class="queue-card">
-            <div class="queue-number">${displayNo}</div>
-            <div class="queue-details">
-                <h3>${esc(q.patientName)}</h3>
-                <p>${esc(q.service)} · ${formatTime(q.time)}</p>
-                <span class="badge ${statusClass(q.status)}">${q.status}</span>
-            </div>
-            <div class="queue-actions">
-                ${q.status === "Waiting" ? `<button class="action-btn primary" onclick="serveAppointment('${q.number}')">Serve</button><button class="action-btn danger" onclick="noShowAppointment('${q.number}')">No-show</button>` : ""}
-                ${q.status === "Serving" ? `<button class="action-btn success" onclick="completeAppointment('${q.number}')">Complete</button>` : ""}
-            </div>
-        </div>`;
-    }).join("");
+    container.innerHTML = withDailyNumbers(queues, "A")
+        .map(q => queueCard(q.displayNo, q, { time: true, actions: queueActions(q, "Appointment") })).join("");
+}
+
+function setAppointmentQueueStatus(number, status, { guardFuture = false, futureMessage = "" } = {}) {
+    const q = appointmentQueue.find(x => x.number === number);
+    if (!q) return false;
+
+    if (guardFuture && q.date > today()) { alert(futureMessage); return false; }
+
+    q.status = status;
+    const a = appointments.find(x => x.id === q.appointmentId);
+    if (a) {
+        a.queueStatus = status;
+        if (status === "Completed" || status === "No-show") a.status = status;
+    }
+
+    save(STORAGE.appointmentQueue, appointmentQueue);
+    save(STORAGE.appointments, appointments);
+    return true;
 }
 
 function serveAppointment(number) {
     const active = appointmentQueue.find(q => q.status === "Serving");
     if (active) { alert(`${active.number} is currently being served.`); return; }
 
-    const q = appointmentQueue.find(x => x.number === number);
-    if (!q) return;
-
-    if (q.date > today()) {
-        alert("This appointment is scheduled for a future date and cannot be served yet.");
-        return;
-    }
-
-    q.status = "Serving";
-    const a = appointments.find(x => x.id === q.appointmentId);
-    if (a) a.queueStatus = "Serving";
-
-    save(STORAGE.appointmentQueue, appointmentQueue);
-    save(STORAGE.appointments, appointments);
-    renderAll();
+    if (setAppointmentQueueStatus(number, "Serving", {
+        guardFuture: true,
+        futureMessage: "This appointment is scheduled for a future date and cannot be served yet."
+    })) renderAll();
 }
 
 function completeAppointment(number) {
     const q = appointmentQueue.find(x => x.number === number);
     if (!q) return;
 
-    if (q.date > today()) {
-        alert("This appointment is scheduled for a future date and cannot be completed yet.");
-        return;
+    if (setAppointmentQueueStatus(number, "Completed", {
+        guardFuture: true,
+        futureMessage: "This appointment is scheduled for a future date and cannot be completed yet."
+    })) {
+        const appt = appointments.find(a => a.id === q.appointmentId);
+        deductMaterials(appt?.customMaterials || BOM[q.service] || {});
+        renderAll();
     }
-
-    q.status = "Completed";
-    const a = appointments.find(x => x.id === q.appointmentId);
-    if (a) { a.queueStatus = "Completed"; a.status = "Completed"; }
-
-    consumeInventory(q.service, q.appointmentId);
-
-    save(STORAGE.appointmentQueue, appointmentQueue);
-    save(STORAGE.appointments, appointments);
-    renderAll();
 }
 
 function noShowAppointment(number) {
-    const q = appointmentQueue.find(x => x.number === number);
-    if (!q) return;
-
-    q.status = "No-show";
-    const a = appointments.find(x => x.id === q.appointmentId);
-    if (a) { a.queueStatus = "No-show"; a.status = "No-show"; }
-
-    save(STORAGE.appointmentQueue, appointmentQueue);
-    save(STORAGE.appointments, appointments);
-    renderAll();
-}
-/*WALK-IN QUEUE*/
-function renderWalkinPatients() {
-    const select = document.getElementById("walkinPatient");
-    if (!select) return;
-    select.innerHTML = `<option value="">Select patient</option>` +
-        patients.map(p => `<option value="${p.id}">${esc(p.name)} (${p.id})</option>`).join("");
+    if (setAppointmentQueueStatus(number, "No-show")) renderAll();
 }
 
+/* ---------- Walk-in queue ---------- */
 function openWalkinModal(patientId = "") {
-    renderWalkinPatients();
-    document.getElementById("walkinPatient").value = patientId;
-
-    const card = document.getElementById("walkinMaterialInsightCard");
-    if (card) card.classList.add("hidden");
-    temporaryWalkinAdjustments = {};
-
-    document.getElementById("walkinModal").classList.remove("hidden");
-}
-
-function closeWalkinModal() {
-    document.getElementById("walkinModal").classList.add("hidden");
+    $("walkinPatient").innerHTML = patientOptions();
+    $("walkinPatient").value = patientId;
+    $("walkinMaterialInsightCard").classList.add("hidden");
+    adjustments.walkin = {};
+    openModal("walkinModal");
 }
 
 function registerPatientWalkin(id) {
@@ -1143,132 +1071,97 @@ function registerPatientWalkin(id) {
     openWalkinModal(id);
 }
 
-document.getElementById("walkinForm").addEventListener("submit", e => {
+$("walkinForm").addEventListener("submit", e => {
     e.preventDefault();
 
-    const patientId = document.getElementById("walkinPatient").value;
-    const patient = patients.find(p => p.id === patientId);
+    const patient = patients.find(p => p.id === $("walkinPatient").value);
     if (!patient) { alert("Please select a patient."); return; }
 
-    const service = document.getElementById("walkinService").value;
     const walkin = {
         number: nextQueue("W", walkins),
         patientId: patient.id,
         patientName: patient.name,
-        service,
+        service: $("walkinService").value,
         time: new Date().toTimeString().slice(0, 5),
         date: today(),
         status: "Waiting",
-        customMaterials: { ...temporaryWalkinAdjustments }
+        customMaterials: { ...adjustments.walkin }
     };
 
     walkins.push(walkin);
     save(STORAGE.walkins, walkins);
 
-    closeWalkinModal();
+    closeModal("walkinModal");
     e.target.reset();
-    document.getElementById("walkinMaterialInsightCard").classList.add("hidden");
+    $("walkinMaterialInsightCard").classList.add("hidden");
     alert(`${patient.name} added as ${walkin.number}.`);
     renderAll();
 });
 
 function renderWalkinQueue() {
-    const container = document.getElementById("walkinQueueContainer");
+    const container = $("walkinQueueContainer");
     if (!container) return;
 
-    const queues = walkins.filter(q => q.status === "Waiting" || q.status === "Serving");
+    const queues = walkins.filter(isActiveQueue);
 
-    if (!queues.length) {
-        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-person-walking"></i><strong>No walk-in patients.</strong><p>Use Add Walk-In to register a patient.</p></div>`;
-        return;
-    }
+    container.innerHTML = queues.length
+        ? queues.map(q => queueCard(q.number, q, { time: true, actions: queueActions(q, "Walkin") })).join("")
+        : `<div class="empty-state"><i class="fa-solid fa-person-walking"></i><strong>No walk-in patients.</strong><p>Use Add Walk-In to register a patient.</p></div>`;
+}
 
-    container.innerHTML = queues.map(q => `
-        <div class="queue-card">
-            <div class="queue-number">${q.number}</div>
-            <div class="queue-details">
-                <h3>${esc(q.patientName)}</h3>
-                <p>${esc(q.service)} · ${formatTime(q.time)}</p>
-                <span class="badge ${statusClass(q.status)}">${q.status}</span>
-            </div>
-            <div class="queue-actions">
-                ${q.status === "Waiting" ? `<button class="action-btn primary" onclick="serveWalkin('${q.number}')">Serve</button><button class="action-btn danger" onclick="noShowWalkin('${q.number}')">No-show</button>` : ""}
-                ${q.status === "Serving" ? `<button class="action-btn success" onclick="completeWalkin('${q.number}')">Complete</button>` : ""}
-            </div>
-        </div>
-    `).join("");
+function setWalkinStatus(number, status) {
+    const q = walkins.find(x => x.number === number);
+    if (!q) return null;
+    q.status = status;
+    save(STORAGE.walkins, walkins);
+    return q;
 }
 
 function serveWalkin(number) {
     const active = walkins.find(q => q.status === "Serving");
     if (active) { alert(`${active.number} is currently being served.`); return; }
-
-    const q = walkins.find(x => x.number === number);
-    if (!q) return;
-
-    q.status = "Serving";
-    save(STORAGE.walkins, walkins);
-    renderAll();
+    if (setWalkinStatus(number, "Serving")) renderAll();
 }
 
 function completeWalkin(number) {
-    const q = walkins.find(x => x.number === number);
+    const q = setWalkinStatus(number, "Completed");
     if (!q) return;
-
-    q.status = "Completed";
-
-    const materialsToDeduct = q.customMaterials || BOM[q.service] || {};
-    Object.entries(materialsToDeduct).forEach(([name, qty]) => {
-        const item = inventory.find(x => x.name === name);
-        if (item) item.stock = Math.max(0, item.stock - qty);
-    });
-
-    save(STORAGE.inventory, inventory);
-    save(STORAGE.walkins, walkins);
+    deductMaterials(q.customMaterials || BOM[q.service] || {});
     renderAll();
 }
 
 function noShowWalkin(number) {
-    const q = walkins.find(x => x.number === number);
-    if (!q) return;
-
-    q.status = "No-show";
-    save(STORAGE.walkins, walkins);
-    renderAll();
+    if (setWalkinStatus(number, "No-show")) renderAll();
 }
-/*DAILY SCHEDULE */
+
+/* ---------- Daily schedule ---------- */
 function renderSchedule() {
-    const table = document.getElementById("scheduleTable");
+    const table = $("scheduleTable");
     if (!table) return;
+    const t = today();
 
-    const appointmentsToday = appointments
-        .filter(a => a.date === today())
-        .map(a => ({ time: a.time, name: a.patientName, type: "Appointment", service: a.service, status: a.status }));
+    const rows = [
+        ...appointments.filter(a => a.date === t).map(a => ({ time: a.time, name: a.patientName, type: "Appointment", service: a.service, status: a.status })),
+        ...walkins.filter(w => w.date === t).map(w => ({ time: w.time, name: w.patientName, type: "Walk-In", service: w.service, status: w.status }))
+    ].sort((a, b) => a.time.localeCompare(b.time));
 
-    const walkinsToday = walkins
-        .filter(w => w.date === today())
-        .map(w => ({ time: w.time, name: w.patientName, type: "Walk-In", service: w.service, status: w.status }));
-
-    const rows = [...appointmentsToday, ...walkinsToday].sort((a, b) => a.time.localeCompare(b.time));
-
-    if (!rows.length) {
-        table.innerHTML = `<tr><td colspan="5">No patients scheduled for today.</td></tr>`;
-        return;
-    }
-
-    table.innerHTML = rows.map(r => `
+    table.innerHTML = rows.length ? rows.map(r => `
         <tr>
             <td>${formatTime(r.time)}</td>
             <td><strong>${esc(r.name)}</strong></td>
             <td><span class="badge ${r.type === "Appointment" ? "approved" : "waiting"}">${r.type}</span></td>
             <td>${esc(r.service)}</td>
             <td><span class="badge ${statusClass(r.status)}">${r.status}</span></td>
-        </tr>
-    `).join("");
+        </tr>`).join("")
+        : `<tr><td colspan="5">No patients scheduled for today.</td></tr>`;
 }
-/*INVENTORY PAGE*/
+
+/* ---------- Inventory ---------- */
+const stockBadge = i =>
+    `<span class="badge ${i.stock <= i.minimum ? "no-show" : "approved"}">${i.stock <= i.minimum ? "Restock" : "OK"}</span>`;
+
 function renderInventory() {
-    const table = document.getElementById("inventoryTable");
+    const table = $("inventoryTable");
     if (!table) return;
 
     table.innerHTML = inventory.map(i => `
@@ -1276,42 +1169,36 @@ function renderInventory() {
             <td><strong>${esc(i.name)}</strong></td>
             <td>${i.stock}</td>
             <td>${i.minimum}</td>
-            <td><span class="badge ${i.stock <= i.minimum ? "no-show" : "approved"}">${i.stock <= i.minimum ? "Restock" : "OK"}</span></td>
+            <td>${stockBadge(i)}</td>
             <td><button class="action-btn success" onclick="openRestockModal('${i.id}')">Edit</button></td>
-        </tr>
-    `).join("");
+        </tr>`).join("");
 }
 
 function openRestockModal(id) {
     const item = inventory.find(x => x.id === id);
     if (!item) return;
-    document.getElementById("restockId").value = item.id;
-    document.getElementById("restockName").value = item.name;
-    document.getElementById("restockValue").value = item.stock;
-    document.getElementById("restockModal").classList.remove("hidden");
-}
-
-function closeRestockModal() {
-    document.getElementById("restockModal").classList.add("hidden");
+    $("restockId").value = item.id;
+    $("restockName").value = item.name;
+    $("restockValue").value = item.stock;
+    openModal("restockModal");
 }
 
 function handleRestockUpdate(e) {
     e.preventDefault();
-    const id = document.getElementById("restockId").value;
-    const newVal = parseInt(document.getElementById("restockValue").value);
-    const item = inventory.find(x => x.id === id);
+    const item = inventory.find(x => x.id === $("restockId").value);
 
     if (item) {
-        item.stock = newVal;
+        item.stock = parseInt($("restockValue").value);
         save(STORAGE.inventory, inventory);
-        closeRestockModal();
+        closeModal("restockModal");
         renderAll();
         openAdminPage("inventory");
         alert(`${item.name} stock updated successfully.`);
     }
     return false;
 }
-/*RESTOCK FORECAST*/
+
+/* ---------- Restock forecast ---------- */
 function getUpcoming(days = 30) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -1328,10 +1215,7 @@ function getUpcoming(days = 30) {
 function calculateForecast() {
     const demand = {};
     getUpcoming(30).forEach(a =>
-        Object.entries(materialsFor(a)).forEach(([name, qty]) => {
-            demand[name] = (demand[name] || 0) + qty;
-        })
-    );
+        Object.entries(materialsFor(a)).forEach(([name, qty]) => { demand[name] = (demand[name] || 0) + qty; }));
 
     return inventory.map(item => {
         const usage = demand[item.name] || 0;
@@ -1348,59 +1232,43 @@ function calculateForecast() {
 }
 
 function formatDuration(days) {
-    if (days < 14) return `${days} day${days === 1 ? "" : "s"}`;
-    if (days < 60) {
-        const weeks = Math.round(days / 7);
-        return `${weeks} week${weeks === 1 ? "" : "s"}`;
-    }
-    if (days < 365) {
-        const months = Math.round(days / 30);
-        return `${months} month${months === 1 ? "" : "s"}`;
-    }
-    const years = Math.round(days / 365);
-    return `${years} year${years === 1 ? "" : "s"}`;
+    const unit = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+    if (days < 14) return unit(days, "day");
+    if (days < 60) return unit(Math.round(days / 7), "week");
+    if (days < 365) return unit(Math.round(days / 30), "month");
+    return unit(Math.round(days / 365), "year");
+}
+
+function stockoutTag(x) {
+    if (x.daysUntilStockout === null) return `<span class="stockout-tag ok">No active usage — stock is stable</span>`;
+    const time = formatDuration(x.daysUntilStockout);
+    if (x.daysUntilStockout <= 0) return `<span class="stockout-tag critical">Out of stock now</span>`;
+    if (x.daysUntilStockout <= x.leadTime) return `<span class="stockout-tag critical">Runs out in ~${time} (before restock arrives)</span>`;
+    return `<span class="stockout-tag">Runs out in ~${time}</span>`;
 }
 
 function renderForecast() {
     const forecast = calculateForecast();
-    const warnings = forecast.filter(x => x.warning);
-    const upcoming = getUpcoming(30);
 
-    document.getElementById("forecastAppointments").textContent = upcoming.length;
-    document.getElementById("forecastMaterials").textContent = inventory.length;
-    document.getElementById("forecastWarnings").textContent = warnings.length;
+    $("forecastAppointments").textContent = getUpcoming(30).length;
+    $("forecastMaterials").textContent = inventory.length;
+    $("forecastWarnings").textContent = forecast.filter(x => x.warning).length;
 
-    document.getElementById("forecastResults").innerHTML = forecast.map(x => {
-        let daysLabel = "";
-        if (x.daysUntilStockout !== null) {
-            const timeText = formatDuration(x.daysUntilStockout);
-            if (x.daysUntilStockout <= 0) {
-                daysLabel = `<span class="stockout-tag critical">Out of stock now</span>`;
-            } else if (x.daysUntilStockout <= x.leadTime) {
-                daysLabel = `<span class="stockout-tag critical">Runs out in ~${timeText} (before restock arrives)</span>`;
-            } else {
-                daysLabel = `<span class="stockout-tag">Runs out in ~${timeText}</span>`;
-            }
-        } else {
-            daysLabel = `<span class="stockout-tag ok">No active usage — stock is stable</span>`;
-        }
-
-        return `
+    $("forecastResults").innerHTML = forecast.map(x => `
         <div class="forecast-result ${x.warning ? "warning" : ""}">
             <strong>${esc(x.name)}</strong>
             <span>Current Stock: ${x.stock} · Projected Usage: ${x.projectedUsage} · Remaining: ${x.projectedStock} · Supplier Lead Time: ${x.leadTime} days</span>
-            ${daysLabel}
+            ${stockoutTag(x)}
             ${x.warning
                 ? `<button class="action-btn danger" onclick="suggestRestock('${esc(x.name)}',${x.projectedStock},${x.leadTime})">Suggest Restock</button>`
                 : `<span>✓ Sufficient stock</span>`}
-        </div>`;
-    }).join("");
+        </div>`).join("");
 
     renderForecastSummary();
 }
 
 function renderForecastSummary() {
-    const el = document.getElementById("forecastSummary");
+    const el = $("forecastSummary");
     if (!el) return;
     const n = calculateForecast().filter(x => x.warning).length;
     el.textContent = n ? `${n} material(s) require restocking.` : "Inventory is sufficient for projected demand.";
@@ -1411,31 +1279,36 @@ function suggestRestock(name, stock, lead) {
     openAdminPage("inventory");
 }
 
-
-/*PUBLIC QUEUE STATUS*/
+/* ---------- Public queue status ---------- */
 function renderPublicQueues() {
-    const aBox = document.getElementById("publicAppointmentQueue");
-    const wBox = document.getElementById("publicWalkinQueue");
+    const aBox = $("publicAppointmentQueue");
+    const wBox = $("publicWalkinQueue");
     if (!aBox || !wBox) return;
 
     syncAppointmentQueue();
-    const a = appointmentQueue.filter(q => q.status === "Waiting" || q.status === "Serving");
-    const w = walkins.filter(q => q.status === "Waiting" || q.status === "Serving");
+    const a = withDailyNumbers(appointmentQueue.filter(isActiveQueue), "A");
+    const w = walkins.filter(isActiveQueue);
 
-    const dailyCounters = {};
-    aBox.innerHTML = a.length ? a.map(q => {
-        dailyCounters[q.date] = (dailyCounters[q.date] || 0) + 1;
-        const displayNo = "A" + String(dailyCounters[q.date]).padStart(3, "0");
-        return `<div class="queue-card"><div class="queue-number">${displayNo}</div><div class="queue-details"><h3>${esc(q.patientName)}</h3><p>${esc(q.service)}</p><span class="badge ${statusClass(q.status)}">${q.status}</span></div></div>`;
-    }).join("") : `<div class="empty-state">No appointment patients waiting.</div>`;
-
-    wBox.innerHTML = w.length ? w.map(q =>
-        `<div class="queue-card"><div class="queue-number">${q.number}</div><div class="queue-details"><h3>${esc(q.patientName)}</h3><p>${esc(q.service)}</p><span class="badge ${statusClass(q.status)}">${q.status}</span></div></div>`
-    ).join("") : `<div class="empty-state">No walk-in patients waiting.</div>`;
+    aBox.innerHTML = a.length ? a.map(q => queueCard(q.displayNo, q)).join("") : `<div class="empty-state">No appointment patients waiting.</div>`;
+    wBox.innerHTML = w.length ? w.map(q => queueCard(q.number, q)).join("") : `<div class="empty-state">No walk-in patients waiting.</div>`;
 }
 
+/* ---------- Dashboard ---------- */
+const charts = {};
+function drawChart(key, canvasId, config) {
+    const ctx = $(canvasId)?.getContext("2d");
+    if (!ctx) return;
+    charts[key]?.destroy();
+    charts[key] = new Chart(ctx, config);
+}
 
-/*DASHBOARD*/
+const shortWeekday = s => new Date(s + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
+const shortMonthDay = s => new Date(s + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+const apptsOn = d => appointments.filter(a => a.date === d && a.status !== "Cancelled");
+const walkinsOn = d => walkins.filter(w => w.date === d);
+const countOn = d => apptsOn(d).length + walkinsOn(d).length;
+
 function renderDashboardCharts() {
     const genderData = {
         Male: patients.filter(p => p.gender === "Male").length,
@@ -1446,111 +1319,47 @@ function renderDashboardCharts() {
     const serviceCounts = {};
     appointments.forEach(a => { serviceCounts[a.service] = (serviceCounts[a.service] || 0) + 1; });
 
-    const invLabels = inventory.map(i => i.name);
-    const invStock = inventory.map(i => i.stock);
-    const invMin = inventory.map(i => i.minimum);
+    drawChart("gender", "genderChart", {
+        type: "doughnut",
+        data: {
+            labels: Object.keys(genderData),
+            datasets: [{ data: Object.values(genderData), backgroundColor: ["#5b0b68", "#78138a", "#ead3f0"], borderWidth: 0 }]
+        },
+        options: { plugins: { legend: { position: "bottom" } }, maintainAspectRatio: false }
+    });
 
-    const ctxGender = document.getElementById("genderChart")?.getContext("2d");
-    if (ctxGender) {
-        if (genderChartInstance) genderChartInstance.destroy();
-        genderChartInstance = new Chart(ctxGender, {
-            type: "doughnut",
-            data: {
-                labels: Object.keys(genderData),
-                datasets: [{ data: Object.values(genderData), backgroundColor: ["#5b0b68", "#78138a", "#ead3f0"], borderWidth: 0 }]
-            },
-            options: { plugins: { legend: { position: "bottom" } }, maintainAspectRatio: false }
-        });
-    }
+    drawChart("service", "serviceChart", {
+        type: "bar",
+        data: {
+            labels: Object.keys(serviceCounts),
+            datasets: [{ label: "Appointments", data: Object.values(serviceCounts), backgroundColor: "#78138a", borderRadius: 5 }]
+        },
+        options: { indexAxis: "y", plugins: { legend: { display: false } }, maintainAspectRatio: false }
+    });
 
-    const ctxService = document.getElementById("serviceChart")?.getContext("2d");
-    if (ctxService) {
-        if (serviceChartInstance) serviceChartInstance.destroy();
-        serviceChartInstance = new Chart(ctxService, {
-            type: "bar",
-            data: {
-                labels: Object.keys(serviceCounts),
-                datasets: [{ label: "Appointments", data: Object.values(serviceCounts), backgroundColor: "#78138a", borderRadius: 5 }]
-            },
-            options: { indexAxis: "y", plugins: { legend: { display: false } }, maintainAspectRatio: false }
-        });
-    }
-
-    const ctxInv = document.getElementById("inventoryChart")?.getContext("2d");
-    if (ctxInv) {
-        if (inventoryChartInstance) inventoryChartInstance.destroy();
-        inventoryChartInstance = new Chart(ctxInv, {
-            type: "bar",
-            data: {
-                labels: invLabels,
-                datasets: [
-                    { label: "Current Stock", data: invStock, backgroundColor: "#5b0b68" },
-                    { label: "Min Required", data: invMin, backgroundColor: "#d93434" }
-                ]
-            },
-            options: { scales: { y: { beginAtZero: true } }, maintainAspectRatio: false }
-        });
-    }
+    drawChart("inventory", "inventoryChart", {
+        type: "bar",
+        data: {
+            labels: inventory.map(i => i.name),
+            datasets: [
+                { label: "Current Stock", data: inventory.map(i => i.stock), backgroundColor: "#5b0b68" },
+                { label: "Min Required", data: inventory.map(i => i.minimum), backgroundColor: "#d93434" }
+            ]
+        },
+        options: { scales: { y: { beginAtZero: true } }, maintainAspectRatio: false }
+    });
 }
-
-function renderDashboard() {
-    const todayDate = today();
-
-    const todayAppointments = appointments.filter(a => a.date === todayDate && a.status !== "Cancelled");
-    const waitingAppointments = appointmentQueue.filter(q => q.status === "Waiting" && q.date === todayDate);
-    const waitingWalkins = walkins.filter(q => q.status === "Waiting" && q.date === todayDate);
-
-    const servingA = appointmentQueue.find(q => q.status === "Serving");
-    const servingW = walkins.find(q => q.status === "Serving");
-
-    let serving = "None";
-    if (servingA) serving = servingA.number;
-    else if (servingW) serving = servingW.number;
-
-    document.getElementById("statAppointments").textContent = todayAppointments.length;
-    document.getElementById("statWaitingAppointments").textContent = waitingAppointments.length;
-    document.getElementById("statWaitingWalkins").textContent = waitingWalkins.length;
-    document.getElementById("statServing").textContent = serving;
-    document.getElementById("statPatients").textContent = patients.length;
-
-    renderDashboardCharts();
-    renderDashboardExtras();
-}
-
-let dailyApptChartInstance = null;
-let apptTrendChartInstance = null;
-let upcomingWeekStart = null;
-let upcomingSelectedDate = null;
-
-const addDays = (dateStr, n) => {
-    const d = new Date(dateStr + "T00:00:00");
-    d.setDate(d.getDate() + n);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-
-const shortWeekday = s => new Date(s + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
-const shortMonthDay = s => new Date(s + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-const countOn = d =>
-    appointments.filter(a => a.date === d && a.status !== "Cancelled").length +
-    walkins.filter(w => w.date === d).length;
 
 function renderDailyApptChart() {
-    const ctx = document.getElementById("dailyApptChart")?.getContext("2d");
-    if (!ctx) return;
-
     const days = Array.from({ length: 7 }, (_, i) => addDays(today(), i - 6));
-    const apptData = days.map(d => appointments.filter(a => a.date === d && a.status !== "Cancelled").length);
-    const walkinData = days.map(d => walkins.filter(w => w.date === d).length);
 
-    if (dailyApptChartInstance) dailyApptChartInstance.destroy();
-    dailyApptChartInstance = new Chart(ctx, {
+    drawChart("daily", "dailyApptChart", {
         type: "bar",
         data: {
             labels: days.map(shortWeekday),
             datasets: [
-                { label: "Appointments", data: apptData, backgroundColor: "#5b0b68", borderRadius: 6, borderSkipped: false },
-                { label: "Walk-Ins", data: walkinData, backgroundColor: "#d9b8e2", borderRadius: 6, borderSkipped: false }
+                { label: "Appointments", data: days.map(d => apptsOn(d).length), backgroundColor: "#5b0b68", borderRadius: 6, borderSkipped: false },
+                { label: "Walk-Ins", data: days.map(d => walkinsOn(d).length), backgroundColor: "#d9b8e2", borderRadius: 6, borderSkipped: false }
             ]
         },
         options: {
@@ -1565,17 +1374,12 @@ function renderDailyApptChart() {
 }
 
 function renderApptTrendChart() {
-    const ctx = document.getElementById("apptTrendChart")?.getContext("2d");
-    if (!ctx) return;
-
     const t = today();
     const days = Array.from({ length: 15 }, (_, i) => addDays(t, i - 7));
 
     const namesByDay = days.map(d => [
-        ...appointments.filter(a => a.date === d && a.status !== "Cancelled")
-            .map(a => `${a.patientName} (${a.service})`),
-        ...walkins.filter(w => w.date === d)
-            .map(w => `${w.patientName} (Walk-In)`)
+        ...apptsOn(d).map(a => `${a.patientName} (${a.service})`),
+        ...walkinsOn(d).map(w => `${w.patientName} (Walk-In)`)
     ]);
 
     const hoverLine = {
@@ -1598,8 +1402,7 @@ function renderApptTrendChart() {
         }
     };
 
-    if (apptTrendChartInstance) apptTrendChartInstance.destroy();
-    apptTrendChartInstance = new Chart(ctx, {
+    drawChart("trend", "apptTrendChart", {
         type: "line",
         data: {
             labels: days.map(shortMonthDay),
@@ -1653,32 +1456,30 @@ function renderApptTrendChart() {
     });
 }
 
+let upcomingWeekStart = null;
+let upcomingSelectedDate = null;
+
 function renderUpcomingAppointments() {
-    const strip = document.getElementById("upcomingStrip");
-    const list = document.getElementById("upcomingList");
-    const monthLabel = document.getElementById("upcomingMonth");
+    const strip = $("upcomingStrip");
+    const list = $("upcomingList");
+    const monthLabel = $("upcomingMonth");
     if (!strip || !list || !monthLabel) return;
 
-    if (!upcomingWeekStart) upcomingWeekStart = today();
-    if (!upcomingSelectedDate) upcomingSelectedDate = today();
+    upcomingWeekStart ||= today();
+    upcomingSelectedDate ||= today();
 
     const days = Array.from({ length: 7 }, (_, i) => addDays(upcomingWeekStart, i));
-    monthLabel.textContent = new Date(days[0] + "T00:00:00")
-        .toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    monthLabel.textContent = new Date(days[0] + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-    strip.innerHTML = days.map(d => {
-        const dt = new Date(d + "T00:00:00");
-        return `<button type="button" class="upcoming-day ${d === upcomingSelectedDate ? "active" : ""}" onclick="selectUpcomingDay('${d}')">
-                    <strong>${dt.getDate()}</strong><span>${shortWeekday(d)}</span>
-                </button>`;
-    }).join("");
+    strip.innerHTML = days.map(d => `
+        <button type="button" class="upcoming-day ${d === upcomingSelectedDate ? "active" : ""}" onclick="selectUpcomingDay('${d}')">
+            <strong>${new Date(d + "T00:00:00").getDate()}</strong><span>${shortWeekday(d)}</span>
+        </button>`).join("");
 
     const sel = upcomingSelectedDate;
     const rows = [
-        ...appointments.filter(a => a.date === sel && a.status !== "Cancelled")
-            .map(a => ({ time: a.time, name: a.patientName, service: a.service, status: a.status, type: "Appointment" })),
-        ...walkins.filter(w => w.date === sel)
-            .map(w => ({ time: w.time, name: w.patientName, service: w.service, status: w.status, type: "Walk-In" }))
+        ...apptsOn(sel).map(a => ({ time: a.time, name: a.patientName, service: a.service, status: a.status, type: "Appointment" })),
+        ...walkinsOn(sel).map(w => ({ time: w.time, name: w.patientName, service: w.service, status: w.status, type: "Walk-In" }))
     ].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
 
     if (!rows.length) {
@@ -1706,13 +1507,22 @@ function selectUpcomingDay(d) {
 }
 
 function shiftUpcomingWeek(dir) {
-    if (!upcomingWeekStart) upcomingWeekStart = today();
-    upcomingWeekStart = addDays(upcomingWeekStart, dir * 7);
+    upcomingWeekStart = addDays(upcomingWeekStart || today(), dir * 7);
     upcomingSelectedDate = upcomingWeekStart;
     renderUpcomingAppointments();
 }
 
-function renderDashboardExtras() {
+function renderDashboard() {
+    const t = today();
+    const servingNumber = (appointmentQueue.find(q => q.status === "Serving") || walkins.find(q => q.status === "Serving"))?.number;
+
+    $("statAppointments").textContent = apptsOn(t).length;
+    $("statWaitingAppointments").textContent = appointmentQueue.filter(q => q.status === "Waiting" && q.date === t).length;
+    $("statWaitingWalkins").textContent = walkins.filter(q => q.status === "Waiting" && q.date === t).length;
+    $("statServing").textContent = servingNumber || "None";
+    $("statPatients").textContent = patients.length;
+
+    renderDashboardCharts();
     try {
         renderDailyApptChart();
         renderApptTrendChart();
@@ -1722,50 +1532,51 @@ function renderDashboardExtras() {
     }
 }
 
+/* ---------- Reports ---------- */
+function inReportDateRange(dateValue) {
+    const start = $("reportStartDate").value;
+    const end = $("reportEndDate").value;
+    if (!start && !end) return true;
 
-/*REPORTS */
-function inReportDateRange(dateStr) {
-    const startEl = document.getElementById("reportStartDate");
-    const endEl = document.getElementById("reportEndDate");
-    const startVal = startEl ? startEl.value : "";
-    const endVal = endEl ? endEl.value : "";
-    if (!startVal && !endVal) return true;
-
-    const d = new Date(dateStr + "T00:00:00");
-    if (startVal && d < new Date(startVal + "T00:00:00")) return false;
-    if (endVal && d > new Date(endVal + "T23:59:59")) return false;
+    const d = new Date(dateValue + "T00:00:00");
+    if (start && d < new Date(start + "T00:00:00")) return false;
+    if (end && d > new Date(end + "T23:59:59")) return false;
     return true;
 }
 
 function clearReportDateFilter() {
-    document.getElementById("reportStartDate").value = "";
-    document.getElementById("reportEndDate").value = "";
+    $("reportStartDate").value = "";
+    $("reportEndDate").value = "";
     renderReports();
 }
 
-function getAllHistory() {
-    return [
-        ...appointments.map(a => ({ date: a.date, time: a.time || "00:00", type: "Appt", name: a.patientName, svc: a.service, stat: a.status })),
-        ...walkins.map(w => ({ date: w.date, time: w.time || "00:00", type: "Walkin", name: w.patientName, svc: w.service, stat: w.status }))
-    ];
-}
+const getAllHistory = () => [
+    ...appointments.map(a => ({ date: a.date, time: a.time || "00:00", type: "Appt", name: a.patientName, svc: a.service, stat: a.status })),
+    ...walkins.map(w => ({ date: w.date, time: w.time || "00:00", type: "Walkin", name: w.patientName, svc: w.service, stat: w.status }))
+];
 
 const byDateTime = (a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`);
+const byId = (a, b) => a.id.localeCompare(b.id, undefined, { numeric: true });
 
 function renderReports() {
-    const totalCompleted = appointmentQueue.filter(q => q.status === "Completed").length + walkins.filter(q => q.status === "Completed").length;
-    const totalNoShow = appointmentQueue.filter(q => q.status === "No-show").length + walkins.filter(q => q.status === "No-show").length;
+    const countStatus = status =>
+        appointmentQueue.filter(q => q.status === status).length + walkins.filter(q => q.status === status).length;
 
-    document.getElementById("reportPatients").textContent = patients.length;
-    document.getElementById("reportAppointments").textContent = appointments.length;
-    document.getElementById("reportCompleted").textContent = totalCompleted;
-    document.getElementById("reportNoShow").textContent = totalNoShow;
+    $("reportPatients").textContent = patients.length;
+    $("reportAppointments").textContent = appointments.length;
+    $("reportCompleted").textContent = countStatus("Completed");
+    $("reportNoShow").textContent = countStatus("No-show");
 
-    const filter = document.getElementById("reportFilter").value;
-    const tableTitle = document.getElementById("reportTableTitle");
-    const tableHeader = document.getElementById("reportTableHeader");
-    const tableBody = document.getElementById("reportActivityTable");
+    const filter = $("reportFilter").value;
+    const setTable = (title, headers, rowsHtml, emptyMsg) => {
+        $("reportTableTitle").textContent = title;
+        $("reportTableHeader").innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>`;
+        $("reportActivityTable").innerHTML = rowsHtml.length
+            ? rowsHtml.join("")
+            : `<tr><td colspan="${headers.length}">${emptyMsg}</td></tr>`;
+    };
 
+    const historyHeaders = ["Date", "Type", "Patient", "Service", "Status"];
     const historyRow = r => `
         <tr>
             <td>${formatDate(r.date)}</td>
@@ -1774,188 +1585,112 @@ function renderReports() {
             <td>${esc(r.svc || "-")}</td>
             <td><span class="badge ${statusClass(r.stat)}">${r.stat}</span></td>
         </tr>`;
-    const historyHeader = `<tr><th>Date</th><th>Type</th><th>Patient</th><th>Service</th><th>Status</th></tr>`;
 
     if (filter === "patients") {
-        tableTitle.textContent = "Full Patient Directory";
-        tableHeader.innerHTML = `<tr><th>ID</th><th>Patient Name</th><th>Contact</th><th>Date of birth</th><th>Gender</th><th>Address</th></tr>`;
+        setTable("Full Patient Directory",
+            ["ID", "Patient Name", "Contact", "Date of birth", "Gender", "Address"],
+            [...patients].sort(byId).map(p => `
+                <tr>
+                    <td>${p.id}</td>
+                    <td><strong>${esc(p.name)}</strong></td>
+                    <td>${esc(p.contact)}</td>
+                    <td>${formatDate(p.dob)}</td>
+                    <td>${esc(p.gender || "Other")}</td>
+                    <td>${esc(p.address || "-")}</td>
+                </tr>`),
+            "No patients found.");
 
-        const list = [...patients].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-        tableBody.innerHTML = list.length ? list.map(p => `
-            <tr>
-                <td>${p.id}</td>
-                <td><strong>${esc(p.name)}</strong></td>
-                <td>${esc(p.contact)}</td>
-                <td>${formatDate(p.dob)}</td>
-                <td>${esc(p.gender || "Other")}</td>
-                <td>${esc(p.address || "-")}</td>
-            </tr>`).join("") : `<tr><td colspan="6">No patients found.</td></tr>`;
+    } else if (["male", "female", "other"].includes(filter)) {
+        const gender = { male: "Male", female: "Female", other: "Other" }[filter];
+        const list = patients
+            .filter(p => gender === "Other" ? (p.gender === "Other" || !p.gender) : p.gender === gender)
+            .sort(byId);
 
-    } else if (filter === "male" || filter === "female" || filter === "other") {
-        const genderMap = { male: "Male", female: "Female", other: "Other" };
-        const gender = genderMap[filter];
-        tableTitle.textContent = `${gender} Patient Directory`;
-        tableHeader.innerHTML = `<tr><th>No.</th><th>Patient Name</th><th>Contact</th><th>Date of Birth</th><th>Gender</th></tr>`;
-
-        const list = patients.filter(p => {
-            if (gender === "Other") return p.gender === "Other" || !p.gender;
-            return p.gender === gender;
-        }).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-
-        tableBody.innerHTML = list.length ? list.map((p, idx) => `
-            <tr>
-                <td>${idx + 1}</td>
-                <td><strong>${esc(p.name)}</strong></td>
-                <td>${esc(p.contact)}</td>
-                <td>${formatDate(p.dob)}</td>
-                <td>${esc(p.gender || "Other")}</td>
-            </tr>`).join("") : `<tr><td colspan="5">No ${gender} patients found.</td></tr>`;
+        setTable(`${gender} Patient Directory`,
+            ["No.", "Patient Name", "Contact", "Date of Birth", "Gender"],
+            list.map((p, idx) => `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td><strong>${esc(p.name)}</strong></td>
+                    <td>${esc(p.contact)}</td>
+                    <td>${formatDate(p.dob)}</td>
+                    <td>${esc(p.gender || "Other")}</td>
+                </tr>`),
+            `No ${gender} patients found.`);
 
     } else if (filter === "completed" || filter === "noshow") {
         const status = filter === "completed" ? "Completed" : "No-show";
-        tableTitle.textContent = `Full ${status} History`;
-        tableHeader.innerHTML = historyHeader;
-
-        const rows = getAllHistory()
-            .filter(item => item.stat === status && inReportDateRange(item.date))
-            .sort(byDateTime);
-
-        tableBody.innerHTML = rows.length ? rows.map(historyRow).join("") : `<tr><td colspan="5">No ${status} records found.</td></tr>`;
+        setTable(`Full ${status} History`, historyHeaders,
+            getAllHistory().filter(i => i.stat === status && inReportDateRange(i.date)).sort(byDateTime).map(historyRow),
+            `No ${status} records found.`);
 
     } else if (filter === "walkin") {
-        tableTitle.textContent = "Walk-In Patient Records";
-        tableHeader.innerHTML = `<tr><th>Queue #</th><th>Date</th><th>Time</th><th>Patient</th><th>Service</th><th>Status</th></tr>`;
-
-        const sortedWalkins = walkins
-            .filter(w => inReportDateRange(w.date))
-            .sort((a, b) => new Date(`${a.date}T${a.time || "00:00"}`) - new Date(`${b.date}T${b.time || "00:00"}`));
-
-        tableBody.innerHTML = sortedWalkins.length ? sortedWalkins.map(w => `
-            <tr>
-                <td>${esc(w.number)}</td>
-                <td>${formatDate(w.date)}</td>
-                <td>${formatTime(w.time)}</td>
-                <td><strong>${esc(w.patientName)}</strong></td>
-                <td>${esc(w.service || "-")}</td>
-                <td><span class="badge ${statusClass(w.status)}">${w.status}</span></td>
-            </tr>`).join("") : `<tr><td colspan="6">No walk-in records found.</td></tr>`;
+        setTable("Walk-In Patient Records",
+            ["Queue #", "Date", "Time", "Patient", "Service", "Status"],
+            walkins.filter(w => inReportDateRange(w.date))
+                .sort((a, b) => new Date(`${a.date}T${a.time || "00:00"}`) - new Date(`${b.date}T${b.time || "00:00"}`))
+                .map(w => `
+                    <tr>
+                        <td>${esc(w.number)}</td>
+                        <td>${formatDate(w.date)}</td>
+                        <td>${formatTime(w.time)}</td>
+                        <td><strong>${esc(w.patientName)}</strong></td>
+                        <td>${esc(w.service || "-")}</td>
+                        <td><span class="badge ${statusClass(w.status)}">${w.status}</span></td>
+                    </tr>`),
+            "No walk-in records found.");
 
     } else if (filter === "inventory") {
-        tableTitle.textContent = "Inventory Stock Report";
-        tableHeader.innerHTML = `<tr><th>Material</th><th>Current Stock</th><th>Minimum Required</th><th>Supplier Lead Time</th><th>Status</th></tr>`;
-
-        const sortedInventory = [...inventory].sort((a, b) => a.name.localeCompare(b.name));
-        tableBody.innerHTML = sortedInventory.length ? sortedInventory.map(i => `
-            <tr>
-                <td><strong>${esc(i.name)}</strong></td>
-                <td>${i.stock}</td>
-                <td>${i.minimum}</td>
-                <td>${i.leadTime} days</td>
-                <td><span class="badge ${i.stock <= i.minimum ? "no-show" : "approved"}">${i.stock <= i.minimum ? "Restock" : "OK"}</span></td>
-            </tr>`).join("") : `<tr><td colspan="5">No inventory records found.</td></tr>`;
+        setTable("Inventory Stock Report",
+            ["Material", "Current Stock", "Minimum Required", "Supplier Lead Time", "Status"],
+            [...inventory].sort((a, b) => a.name.localeCompare(b.name)).map(i => `
+                <tr>
+                    <td><strong>${esc(i.name)}</strong></td>
+                    <td>${i.stock}</td>
+                    <td>${i.minimum}</td>
+                    <td>${i.leadTime} days</td>
+                    <td>${stockBadge(i)}</td>
+                </tr>`),
+            "No inventory records found.");
 
     } else {
-        tableTitle.textContent = "Recent Activity Log";
-        tableHeader.innerHTML = historyHeader;
-
-        const rows = getAllHistory()
-            .filter(item => inReportDateRange(item.date))
-            .sort(byDateTime)
-            .slice(-30);
-
-        tableBody.innerHTML = rows.map(historyRow).join("");
+        setTable("Recent Activity Log", historyHeaders,
+            getAllHistory().filter(i => inReportDateRange(i.date)).sort(byDateTime).slice(-30).map(historyRow),
+            "No activity found.");
     }
 }
 
-function printFilteredReport() {
-    const title = document.getElementById("reportTableTitle").textContent;
-    const tableContent = document.querySelector("#page-reports table").outerHTML;
+const PRINT_CSS = `
+    @page { size: auto; margin: 0mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 18mm 16mm 22mm; margin: 0; color: #202124; counter-reset: page; }
+    .print-letterhead { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #5b0b68; padding-bottom: 14px; margin-bottom: 18px; }
+    .print-letterhead img { width: 56px; height: 56px; object-fit: contain; border-radius: 50%; flex-shrink: 0; }
+    .print-letterhead .clinic-name { font-size: 22px; font-weight: 800; color: #5b0b68; letter-spacing: .3px; }
+    .print-letterhead .clinic-tagline { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .print-meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+    .print-meta h2 { font-size: 17px; color: #202124; margin: 0; }
+    .print-meta .gen-date { font-size: 11px; color: #6b7280; }
+    table { width: 100%; border-collapse: collapse; margin-top: 6px; page-break-inside: auto; }
+    th, td { border: 1px solid #e5e0e7; padding: 10px; text-align: left; font-size: 12px; }
+    th { background: #f6eafa; color: #5b0b68; text-transform: uppercase; letter-spacing: .4px; font-size: 10.5px; }
+    tr:nth-child(even) td { background: #fbf8fc; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    .badge { font-weight: bold; }
+    .page-footer { position: fixed; bottom: 8mm; left: 16mm; right: 16mm; display: flex; justify-content: space-between; font-size: 10px; color: #9aa0a6; border-top: 1px solid #eee; padding-top: 6px; }
+    .page-footer .page-num::after { counter-increment: page; content: "Page " counter(page); }`;
 
-    const logoEl = document.querySelector(".sidebar-brand .brand-logo-img");
-    const logoSrc = logoEl ? logoEl.src : "";
+function printFilteredReport() {
+    const title = $("reportTableTitle").textContent;
+    const tableContent = document.querySelector("#page-reports table").outerHTML;
+    const logoSrc = document.querySelector(".sidebar-brand .brand-logo-img")?.src || "";
 
     const w = window.open("", "_blank");
     w.document.write(`
         <html>
             <head>
                 <title>Pecaña Dental Clinic - ${esc(title)}</title>
-                <style>
-                    @page { size: auto; margin: 0mm; }
-                    * { box-sizing: border-box; }
-
-                    body {
-                        font-family: 'Segoe UI', Arial, sans-serif;
-                        padding: 18mm 16mm 22mm;
-                        margin: 0;
-                        color: #202124;
-                        counter-reset: page;
-                    }
-
-                    .print-letterhead {
-                        display: flex;
-                        align-items: center;
-                        gap: 16px;
-                        border-bottom: 3px solid #5b0b68;
-                        padding-bottom: 14px;
-                        margin-bottom: 18px;
-                    }
-
-                    .print-letterhead img {
-                        width: 56px;
-                        height: 56px;
-                        object-fit: contain;
-                        border-radius: 50%;
-                        flex-shrink: 0;
-                    }
-
-                    .print-letterhead .clinic-name {
-                        font-size: 22px;
-                        font-weight: 800;
-                        color: #5b0b68;
-                        letter-spacing: .3px;
-                    }
-
-                    .print-letterhead .clinic-tagline {
-                        font-size: 11px;
-                        color: #6b7280;
-                        margin-top: 2px;
-                    }
-
-                    .print-meta {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: baseline;
-                        margin-bottom: 16px;
-                    }
-
-                    .print-meta h2 { font-size: 17px; color: #202124; margin: 0; }
-                    .print-meta .gen-date { font-size: 11px; color: #6b7280; }
-
-                    table { width: 100%; border-collapse: collapse; margin-top: 6px; page-break-inside: auto; }
-                    th, td { border: 1px solid #e5e0e7; padding: 10px; text-align: left; font-size: 12px; }
-                    th { background: #f6eafa; color: #5b0b68; text-transform: uppercase; letter-spacing: .4px; font-size: 10.5px; }
-                    tr:nth-child(even) td { background: #fbf8fc; }
-                    tr { page-break-inside: avoid; page-break-after: auto; }
-                    .badge { font-weight: bold; }
-
-                    .page-footer {
-                        position: fixed;
-                        bottom: 8mm;
-                        left: 16mm;
-                        right: 16mm;
-                        display: flex;
-                        justify-content: space-between;
-                        font-size: 10px;
-                        color: #9aa0a6;
-                        border-top: 1px solid #eee;
-                        padding-top: 6px;
-                    }
-
-                    .page-footer .page-num::after {
-                        counter-increment: page;
-                        content: "Page " counter(page);
-                    }
-                </style>
+                <style>${PRINT_CSS}</style>
             </head>
             <body>
                 <div class="print-letterhead">
@@ -1973,33 +1708,21 @@ function printFilteredReport() {
 
                 ${tableContent}
 
-                <div class="page-footer">
-                    <span></span>
-                    <span class="page-num"></span>
-                </div>
+                <div class="page-footer"><span></span><span class="page-num"></span></div>
 
                 <script>
-                    window.onload = function() {
-                        window.print();
-                        window.close();
-                    };
+                    window.onload = function() { window.print(); window.close(); };
                 <\/script>
             </body>
-        </html>
-    `);
+        </html>`);
     w.document.close();
 }
 
-
-/*CALENDAR*/
+/* ---------- Advance calendar ---------- */
 let advanceCalendar;
 
 const CAL_DURATION = {
-    "Dental Check-up": 45,
-    "Dental Cleaning": 45,
-    "Tooth Restoration": 60,
-    "Tooth Extraction": 45,
-    "Braces": 60
+    "Dental Check-up": 45, "Dental Cleaning": 45, "Tooth Restoration": 60, "Tooth Extraction": 45, "Braces": 60
 };
 
 const calAddMinutes = (timeStr, mins) => {
@@ -2009,7 +1732,7 @@ const calAddMinutes = (timeStr, mins) => {
 };
 
 function calBuildEvents() {
-    const q = (document.getElementById("calSearch")?.value || "").trim().toLowerCase();
+    const q = ($("calSearch")?.value || "").trim().toLowerCase();
 
     const events = appointments
         .filter(a => a.date && a.time)
@@ -2052,133 +1775,32 @@ function calSyncToolbar() {
     if (!advanceCalendar) return;
     const v = advanceCalendar.view;
 
-    document.getElementById("calTitle").textContent = v.title;
-    document.querySelectorAll(".cal-view-switch button").forEach(b =>
-        b.classList.toggle("active", b.dataset.view === v.type));
+    $("calTitle").textContent = v.title;
+    document.querySelectorAll(".cal-view-switch button").forEach(b => b.classList.toggle("active", b.dataset.view === v.type));
 
     const now = new Date();
-    document.getElementById("calToday").classList.toggle("is-current", now >= v.currentStart && now < v.currentEnd);
+    $("calToday").classList.toggle("is-current", now >= v.currentStart && now < v.currentEnd);
 
     const count = advanceCalendar.getEvents()
         .filter(e => e.display !== "background" && e.start >= v.currentStart && e.start < v.currentEnd).length;
-    document.getElementById("calCount").textContent = `${count} appointment${count === 1 ? "" : "s"} in this view`;
+    $("calCount").textContent = `${count} appointment${count === 1 ? "" : "s"} in this view`;
 }
 
 function calWireToolbar() {
-    document.getElementById("calPrev").onclick = () => advanceCalendar.prev();
-    document.getElementById("calNext").onclick = () => advanceCalendar.next();
-    document.getElementById("calToday").onclick = () => advanceCalendar.today();
+    $("calPrev").onclick = () => advanceCalendar.prev();
+    $("calNext").onclick = () => advanceCalendar.next();
+    $("calToday").onclick = () => advanceCalendar.today();
     document.querySelectorAll(".cal-view-switch button").forEach(b => {
         b.onclick = () => advanceCalendar.changeView(b.dataset.view);
     });
-    document.getElementById("calSearch").addEventListener("input", () => advanceCalendar.refetchEvents());
+    $("calSearch").addEventListener("input", () => advanceCalendar.refetchEvents());
 }
 
 function openAdvanceCalendar() {
-    document.getElementById("calendarModal").classList.remove("hidden");
-    const calendarEl = document.getElementById("calendar");
+    openModal("calendarModal");
 
     if (!advanceCalendar) {
-        advanceCalendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: "timeGridWeek",
-            headerToolbar: false,
-            height: "100%",
-            firstDay: 1,
-            nowIndicator: true,
-            allDaySlot: false,
-            slotMinTime: "07:00:00",
-            slotMaxTime: "21:00:00",
-            slotDuration: "00:30:00",
-            slotLabelInterval: "01:00:00",
-            scrollTime: calScrollTime(),
-            expandRows: false,
-            slotEventOverlap: false,
-            eventMinHeight: 44,
-            eventDisplay: "block",
-            dayMaxEvents: 3,
-            fixedWeekCount: false,
-            noEventsContent: "No appointments for this week",
-            eventTimeFormat: { hour: "numeric", minute: "2-digit", meridiem: "short" },
-            businessHours: [
-                { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: "07:00", endTime: "12:00" },
-                { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: "13:00", endTime: "20:00" }
-            ],
-            events: (info, success) => success(calBuildEvents()),
-
-            slotLabelContent: arg => arg.date.toLocaleTimeString("en-US", { hour: "numeric" }),
-
-            dayHeaderContent: arg => {
-                if (arg.view.type === "dayGridMonth") return arg.text;
-                const name = arg.date.toLocaleDateString("en-US", { weekday: "short" });
-                return { html: `<span class="cal-dh-num">${arg.date.getDate()}</span><span class="cal-dh-name">${name}</span>` };
-            },
-
-            eventContent: arg => {
-                const ev = arg.event;
-                if (ev.display === "background") {
-                    return { html: `<span class="cal-lunch-label"><i class="fa-solid fa-utensils"></i> Lunch Break</span>` };
-                }
-                const p = ev.extendedProps;
-
-                if (arg.view.type === "listWeek") {
-                    return { html: `
-                        <div class="cal-ls">
-                            <strong>${esc(ev.title)}</strong>
-                            <span>${esc(p.service)}</span>
-                            <em class="cal-ls-badge">${esc(p.status)}</em>
-                        </div>` };
-                }
-
-                if (arg.view.type === "dayGridMonth") {
-                    return { html: `<div class="cal-mo"><span class="cal-mo-time">${esc(p.startLabel)}</span><span class="cal-mo-name">${esc(ev.title)}</span></div>` };
-                }
-
-                const icon = SERVICE_INFO[p.service]?.icon || "fa-tooth";
-                return { html: `
-                    <div class="cal-ev-inner">
-                        <div class="cal-ev-name"><i class="fa-solid ${icon}"></i><span>${esc(ev.title)}</span></div>
-                        <div class="cal-ev-time">${esc(p.timeLabel)}</div>
-                        <div class="cal-ev-service">${esc(p.service)}</div>
-                    </div>` };
-            },
-
-            eventDidMount: info => {
-                if (info.event.display === "background") return;
-                const p = info.event.extendedProps;
-                info.el.title = `${info.event.title} · ${p.service} · ${p.timeLabel} · ${p.status}`;
-            },
-
-            eventClick: info => {
-                info.jsEvent.preventDefault();
-                if (info.event.id) openCalendarEventDetails(info.event.id);
-            },
-
-            dateClick: info => {
-                if (advanceCalendar.view.type === "dayGridMonth") advanceCalendar.changeView("timeGridWeek", info.date);
-            },
-
-            datesSet: calSyncToolbar,
-            eventsSet: calSyncToolbar
-        });
-
-        calWireToolbar();
-        advanceCalendar.render();
-    } else {
-        advanceCalendar.refetchEvents();
-    }
-
-    setTimeout(() => {
-        advanceCalendar.updateSize();
-        advanceCalendar.scrollToTime(calScrollTime());
-        calSyncToolbar();
-    }, 60);
-}
-function openAdvanceCalendar() {
-    document.getElementById("calendarModal").classList.remove("hidden");
-    const calendarEl = document.getElementById("calendar");
-
-    if (!advanceCalendar) {
-        advanceCalendar = new FullCalendar.Calendar(calendarEl, {
+        advanceCalendar = new FullCalendar.Calendar($("calendar"), {
             initialView: "timeGridWeek",
             headerToolbar: false,
             height: "100%",
@@ -2277,68 +1899,46 @@ function openCalendarEventDetails(id) {
     const a = appointments.find(x => x.id === id);
     if (!a) return;
 
-    document.getElementById("calendarEventContent").innerHTML = `
+    $("calendarEventContent").innerHTML = `
         <div style="grid-column:1/-1;"><strong>Patient</strong>${esc(a.patientName)}</div>
         <div><strong>Date</strong>${formatDate(a.date)}</div>
         <div><strong>Time</strong>${formatTime(a.time)}</div>
         <div style="grid-column:1/-1;"><strong>Dental Service</strong>${esc(a.service)}</div>
-        <div style="grid-column:1/-1;"><strong>Status</strong><span class="badge ${statusClass(a.status)}">${esc(a.status)}</span></div>
-    `;
-    document.getElementById("calendarEventModal").classList.remove("hidden");
+        <div style="grid-column:1/-1;"><strong>Status</strong><span class="badge ${statusClass(a.status)}">${esc(a.status)}</span></div>`;
+    openModal("calendarEventModal");
 }
 
-function closeCalendarEventModal() {
-    document.getElementById("calendarEventModal").classList.add("hidden");
-}
-
-function closeCalendarModal() {
-    document.getElementById("calendarModal").classList.add("hidden");
-}
-
-/* Config & helpers */
-const NT_ADMIN_READ_KEY = "pecana_admin_notif_read";
-const NT_LOOKUP_KEY     = "pecana_patient_lookup";
-const NT_SEEN_KEY       = "pecana_patient_seen";
-const NT_STEPS          = ["Requested", "Approved", "Serving", "Done"];
-
+/* ---------- Notifications ---------- */
 let ntShownQuery = null;
 
-const ntRead = (key, fallback) => {
-    try {
-        const v = JSON.parse(localStorage.getItem(key));
-        return v ?? fallback;
-    } catch {
-        return fallback;
-    }
+const ntPlural    = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const ntBadgeText = n => (n > 9 ? "9+" : String(n));
+const ntDigits    = s => String(s || "").replace(/\D/g, "");
+const ntNormName  = s => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+const ntIsNumeric = s => /^[\d\s+()-]+$/.test(s);
+
+const ntEmpty = (icon, title, text) => `
+    <div class="nt-empty">
+        <div class="nt-empty-ico"><i class="fa-solid ${icon}"></i></div>
+        <strong>${esc(title)}</strong>
+        <p>${esc(text)}</p>
+    </div>`;
+
+const NT_PANELS = {
+    adminNotify:   { box: "ntAdminBox",   bell: "adminBell" },
+    patientNotify: { box: "ntPatientBox", bell: "patientBell" }
 };
-const ntWrite      = (key, val) => localStorage.setItem(key, JSON.stringify(val));
-const ntPlural     = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-const ntBadgeText  = n => (n > 9 ? "9+" : String(n));
-const ntDigits     = s => String(s || "").replace(/\D/g, "");
-const ntNormName   = s => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
-const ntIsNumeric  = s => /^[\d\s+()-]+$/.test(s);
 
-function ntEmpty(icon, title, text) {
-    return `
-        <div class="nt-empty">
-            <div class="nt-empty-ico"><i class="fa-solid ${icon}"></i></div>
-            <strong>${esc(title)}</strong>
-            <p>${esc(text)}</p>
-        </div>`;
-}
-
-/*Panel open / close*/
 function ntClosePanels() {
-    ["ntAdminBox", "ntPatientBox"].forEach(id =>
-        document.getElementById(id)?.classList.add("hidden"));
-    ["adminBell", "patientBell"].forEach(id =>
-        document.getElementById(id)?.setAttribute("aria-expanded", "false"));
+    Object.values(NT_PANELS).forEach(({ box, bell }) => {
+        $(box)?.classList.add("hidden");
+        $(bell)?.setAttribute("aria-expanded", "false");
+    });
 }
 
 function toggleNotifications(type) {
-    const isAdmin = type === "adminNotify";
-    const box  = document.getElementById(isAdmin ? "ntAdminBox" : "ntPatientBox");
-    const bell = document.getElementById(isAdmin ? "adminBell" : "patientBell");
+    const { box: boxId, bell: bellId } = NT_PANELS[type];
+    const box = $(boxId);
     if (!box) return;
 
     const willOpen = box.classList.contains("hidden");
@@ -2346,17 +1946,17 @@ function toggleNotifications(type) {
     if (!willOpen) return;
 
     box.classList.remove("hidden");
-    bell?.setAttribute("aria-expanded", "true");
+    $(bellId)?.setAttribute("aria-expanded", "true");
     ntPositionPanels();
 
-    if (isAdmin) updateAdminNotifications();
+    if (type === "adminNotify") updateAdminNotifications();
     else openPatientPanel();
 }
 
 function ntPositionPanels() {
-    [["ntAdminBox", "adminBell"], ["ntPatientBox", "patientBell"]].forEach(([boxId, bellId]) => {
-        const box  = document.getElementById(boxId);
-        const bell = document.getElementById(bellId);
+    Object.values(NT_PANELS).forEach(({ box: boxId, bell: bellId }) => {
+        const box = $(boxId);
+        const bell = $(bellId);
         if (!box || !bell || box.classList.contains("hidden")) return;
 
         if (window.innerWidth <= 600) {
@@ -2374,12 +1974,17 @@ window.addEventListener("resize", ntPositionPanels);
 window.addEventListener("scroll", ntPositionPanels, { passive: true });
 
 document.addEventListener("click", e => {
-    if (!e.target.isConnected) return; 
-    if (!e.target.closest(".nt-wrap")) ntClosePanels();
+    if (e.target.isConnected && !e.target.closest(".nt-wrap")) ntClosePanels();
 });
 
 document.addEventListener("keydown", e => {
-    if (e.key === "Escape") ntClosePanels();
+    if (e.key !== "Escape") return;
+    ntClosePanels();
+
+    const deleteModal = $("deleteConfirmModal");
+    if (!deleteModal.classList.contains("hidden")) { closeDeleteConfirm(); return; }
+    clearSelection("appointment");
+    clearSelection("patient");
 });
 
 /* Admin notifications */
@@ -2422,45 +2027,41 @@ function ntBuildAdminNotifications() {
         });
     });
 
-    appointments
-        .filter(a => a.status === "Pending" && a.date >= t)
-        .forEach(a => {
-            const isToday = a.date === t;
-            items.push({
-                key: `appt:${a.id}:${a.date}:${a.time}`, group: "appointments",
-                level: isToday ? "warning" : "info", rank: isToday ? 1 : 3,
-                icon: isToday ? "fa-calendar-check" : "fa-calendar-plus",
-                tag: isToday ? "Needs approval" : "New request",
-                sort: `${a.date} ${a.time || "00:00"}`,
-                title: isToday
-                    ? `Approve ${a.patientName}'s visit`
-                    : `${a.patientName} requested an appointment`,
-                text: isToday
-                    ? `${a.service} today at ${formatTime(a.time)}. Approving adds the patient to the appointment queue.`
-                    : `${a.service} on ${formatDate(a.date)} at ${formatTime(a.time)}.`,
-                meta: isToday ? "Scheduled for today" : `Can be approved on ${formatDate(a.date)}`,
-                page: "appointments"
-            });
+    appointments.filter(a => a.status === "Pending" && a.date >= t).forEach(a => {
+        const isToday = a.date === t;
+        items.push({
+            key: `appt:${a.id}:${a.date}:${a.time}`, group: "appointments",
+            level: isToday ? "warning" : "info", rank: isToday ? 1 : 3,
+            icon: isToday ? "fa-calendar-check" : "fa-calendar-plus",
+            tag: isToday ? "Needs approval" : "New request",
+            sort: `${a.date} ${a.time || "00:00"}`,
+            title: isToday ? `Approve ${a.patientName}'s visit` : `${a.patientName} requested an appointment`,
+            text: isToday
+                ? `${a.service} today at ${formatTime(a.time)}. Approving adds the patient to the appointment queue.`
+                : `${a.service} on ${formatDate(a.date)} at ${formatTime(a.time)}.`,
+            meta: isToday ? "Scheduled for today" : `Can be approved on ${formatDate(a.date)}`,
+            page: "appointments"
         });
+    });
 
     return items.sort((a, b) => a.rank - b.rank || a.sort.localeCompare(b.sort));
 }
 
 function updateAdminNotifications() {
-    const list  = document.getElementById("ntAdminList");
-    const badge = document.getElementById("ntAdminBadge");
-    const bell  = document.getElementById("adminBell");
-    const sub   = document.getElementById("ntAdminSub");
+    const list = $("ntAdminList");
+    const badge = $("ntAdminBadge");
+    const bell = $("adminBell");
+    const sub = $("ntAdminSub");
     if (!list || !badge) return;
 
     const items = ntBuildAdminNotifications();
-    const keys  = new Set(items.map(n => n.key));
+    const keys = new Set(items.map(n => n.key));
 
-    let read = new Set(ntRead(NT_ADMIN_READ_KEY, []));
+    let read = new Set(readJSON(NT_KEYS.adminRead, []));
     const kept = [...read].filter(k => keys.has(k));
     if (kept.length !== read.size) {
         read = new Set(kept);
-        ntWrite(NT_ADMIN_READ_KEY, kept);
+        save(NT_KEYS.adminRead, kept);
     }
 
     const unread = items.filter(n => !read.has(n.key)).length;
@@ -2486,8 +2087,7 @@ function updateAdminNotifications() {
         <div class="nt-section">${groupLabels[g] || g}<span>${groups[g].length}</span></div>
         ${groups[g].map(n => `
             <div class="nt-item nt-${n.level} ${read.has(n.key) ? "" : "unread"}"
-                 role="button" tabindex="0"
-                 data-key="${esc(n.key)}" data-page="${esc(n.page)}">
+                 role="button" tabindex="0" data-key="${esc(n.key)}" data-page="${esc(n.page)}">
                 <div class="nt-ico"><i class="fa-solid ${n.icon}"></i></div>
                 <div class="nt-main">
                     <span class="nt-tag">${esc(n.tag)}</span>
@@ -2496,40 +2096,34 @@ function updateAdminNotifications() {
                     <small>${esc(n.meta)}</small>
                 </div>
                 <span class="nt-dot"></span>
-            </div>`).join("")}
-    `).join("");
+            </div>`).join("")}`).join("");
 }
 
 function ntOpenAdminItem(el) {
-    const read = new Set(ntRead(NT_ADMIN_READ_KEY, []));
+    const read = new Set(readJSON(NT_KEYS.adminRead, []));
     read.add(el.dataset.key);
-    ntWrite(NT_ADMIN_READ_KEY, [...read]);
+    save(NT_KEYS.adminRead, [...read]);
     ntClosePanels();
     updateAdminNotifications();
     if (el.dataset.page) openAdminPage(el.dataset.page);
 }
 
 function markAllAdminNotificationsRead() {
-    ntWrite(NT_ADMIN_READ_KEY, ntBuildAdminNotifications().map(n => n.key));
+    save(NT_KEYS.adminRead, ntBuildAdminNotifications().map(n => n.key));
     updateAdminNotifications();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    const list = document.getElementById("ntAdminList");
-    if (!list) return;
-    list.addEventListener("click", e => {
-        const item = e.target.closest(".nt-item");
-        if (item) ntOpenAdminItem(item);
-    });
-    list.addEventListener("keydown", e => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        const item = e.target.closest(".nt-item");
-        if (item) { e.preventDefault(); ntOpenAdminItem(item); }
-    });
+$("ntAdminList").addEventListener("click", e => {
+    const item = e.target.closest(".nt-item");
+    if (item) ntOpenAdminItem(item);
+});
+$("ntAdminList").addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const item = e.target.closest(".nt-item");
+    if (item) { e.preventDefault(); ntOpenAdminItem(item); }
 });
 
-/* Patient (public) notifications*/
-
+/* Patient (public) notifications */
 function ntFindAppointments(query) {
     const q = String(query || "").trim();
     if (!q) return [];
@@ -2551,15 +2145,10 @@ function ntFindAppointments(query) {
 function ntQueueInfo(a) {
     const q = appointmentQueue.find(x => x.appointmentId === a.id);
     if (!q) return null;
-    const active = appointmentQueue.filter(x =>
-        x.date === q.date && (x.status === "Waiting" || x.status === "Serving"));
+    const active = appointmentQueue.filter(x => x.date === q.date && isActiveQueue(x));
     const idx = active.findIndex(x => x.appointmentId === a.id);
     if (idx < 0) return null;
-    return {
-        number: "A" + String(idx + 1).padStart(3, "0"),
-        ahead: idx,
-        serving: q.status === "Serving"
-    };
+    return { number: "A" + pad3(idx + 1), ahead: idx, serving: q.status === "Serving" };
 }
 
 function ntSignature(a) {
@@ -2588,7 +2177,7 @@ function ntDescribe(a) {
 
     if (a.status === "Approved") {
         const queue = ntQueueInfo(a);
-        if (queue && queue.serving) return {
+        if (queue?.serving) return {
             tone: "serving", label: "Now serving", step: 2, queue,
             text: "It's your turn. Please proceed to the dental chair."
         };
@@ -2659,7 +2248,7 @@ function ntPatientCard(a, updated) {
 }
 
 function ntRenderPatientResults(query) {
-    const list = document.getElementById("ntPatientList");
+    const list = $("ntPatientList");
     if (!list) return 0;
 
     ntShownQuery = query;
@@ -2679,45 +2268,46 @@ function ntRenderPatientResults(query) {
     });
 
     const LIMIT = 6;
-    const shown = sorted.slice(0, LIMIT);
-    const seen = ntRead(NT_SEEN_KEY, {});
+    const seen = readJSON(NT_KEYS.seen, {});
 
     list.innerHTML = `
         <div class="nt-results-head">
             <span>${ntPlural(appts.length, "appointment")} found</span>
             <button type="button" class="nt-clear" onclick="ntClearLookup()">Clear</button>
         </div>
-        ${shown.map(a => ntPatientCard(a, seen[a.id] !== undefined && seen[a.id] !== ntSignature(a))).join("")}
+        ${sorted.slice(0, LIMIT).map(a => ntPatientCard(a, seen[a.id] !== undefined && seen[a.id] !== ntSignature(a))).join("")}
         ${appts.length > LIMIT ? `<div class="nt-more">Showing the latest ${LIMIT}. Contact the clinic for older records.</div>` : ""}`;
 
     appts.forEach(a => { seen[a.id] = ntSignature(a); });
-    ntWrite(NT_SEEN_KEY, seen);
+    save(NT_KEYS.seen, seen);
     return appts.length;
 }
 
+const NT_DEFAULT_HINT = ["Check your appointment",
+    "Enter the contact number or full name you booked with to see your status and queue position."];
+
 function ntShowPatientHint(title, text, icon = "fa-calendar-check") {
     ntShownQuery = null;
-    const list = document.getElementById("ntPatientList");
+    const list = $("ntPatientList");
     if (list) list.innerHTML = ntEmpty(icon, title, text);
 }
 
 function openPatientPanel() {
-    const input = document.getElementById("ntPatientSearch");
-    const saved = localStorage.getItem(NT_LOOKUP_KEY);
+    const input = $("ntPatientSearch");
+    const saved = localStorage.getItem(NT_KEYS.lookup);
 
     if (saved) {
         if (input && !input.value) input.value = saved;
         ntRenderPatientResults(saved);
     } else {
-        ntShowPatientHint("Check your appointment",
-            "Enter the contact number or full name you booked with to see your status and queue position.");
+        ntShowPatientHint(...NT_DEFAULT_HINT);
     }
     updatePatientNotifications();
     setTimeout(() => input?.focus(), 60);
 }
 
 function checkPatientNotifications() {
-    const input = document.getElementById("ntPatientSearch");
+    const input = $("ntPatientSearch");
     const q = (input?.value || "").trim();
 
     if (!q) {
@@ -2733,35 +2323,31 @@ function checkPatientNotifications() {
         return;
     }
 
-    const count = ntRenderPatientResults(q);
-    if (count) localStorage.setItem(NT_LOOKUP_KEY, q);
+    if (ntRenderPatientResults(q)) localStorage.setItem(NT_KEYS.lookup, q);
     updatePatientNotifications();
 }
 
 function ntClearLookup() {
-    localStorage.removeItem(NT_LOOKUP_KEY);
-    localStorage.removeItem(NT_SEEN_KEY);
-    const input = document.getElementById("ntPatientSearch");
-    if (input) input.value = "";
-    ntShowPatientHint("Check your appointment",
-        "Enter the contact number or full name you booked with to see your status and queue position.");
+    localStorage.removeItem(NT_KEYS.lookup);
+    localStorage.removeItem(NT_KEYS.seen);
+    $("ntPatientSearch").value = "";
+    ntShowPatientHint(...NT_DEFAULT_HINT);
     updatePatientNotifications();
 }
 
 function updatePatientNotifications() {
-    const badge = document.getElementById("ntPatientBadge");
-    const bell  = document.getElementById("patientBell");
-    const box   = document.getElementById("ntPatientBox");
+    const badge = $("ntPatientBadge");
+    const bell = $("patientBell");
     if (!badge) return;
 
-    const saved = localStorage.getItem(NT_LOOKUP_KEY);
-    const isOpen = box && !box.classList.contains("hidden");
+    const saved = localStorage.getItem(NT_KEYS.lookup);
+    const isOpen = !$("ntPatientBox").classList.contains("hidden");
 
     if (isOpen && ntShownQuery) ntRenderPatientResults(ntShownQuery);
 
     let changed = 0;
     if (saved && !isOpen) {
-        const seen = ntRead(NT_SEEN_KEY, {});
+        const seen = readJSON(NT_KEYS.seen, {});
         changed = ntFindAppointments(saved).filter(a => seen[a.id] !== ntSignature(a)).length;
     }
 
@@ -2771,169 +2357,26 @@ function updatePatientNotifications() {
     bell?.setAttribute("aria-label", changed ? `Appointment updates, ${changed} new` : "Appointment status");
 }
 
-
-/*WELCOME SPLASH */
-window.closeWelcomeSplash = function () {
+/* ---------- Welcome / loading splash ---------- */
+function closeWelcomeSplash() {
     sessionStorage.setItem("pecana_entered", "true");
-    const welcomeSplash = document.getElementById("welcomeSplash");
-    if (welcomeSplash) {
-        welcomeSplash.classList.add("hidden");
-        setTimeout(() => { welcomeSplash.style.display = "none"; }, 300);
-    }
-};
+    $("welcomeSplash")?.classList.add("hidden");
+}
 
-(function handleInitialSplashState() {
-    const isAdminLoggedIn = sessionStorage.getItem("pecana_admin_logged_in") === "true" || window.location.pathname.includes("admin");
-    const alreadyEntered = sessionStorage.getItem("pecana_entered") === "true";
-
-    document.addEventListener("DOMContentLoaded", () => {
-        const welcomeSplash = document.getElementById("welcomeSplash");
-        const logoOnlySplash = document.getElementById("logoOnlySplash");
-
-        if (isAdminLoggedIn || alreadyEntered) {
-            if (welcomeSplash) {
-                welcomeSplash.style.display = "none";
-                welcomeSplash.classList.add("hidden");
-            }
-            if (logoOnlySplash) {
-                logoOnlySplash.style.display = "flex";
-                logoOnlySplash.classList.remove("hidden");
-
-                setTimeout(() => {
-                    logoOnlySplash.classList.add("fade-out");
-                    setTimeout(() => {
-                        logoOnlySplash.style.display = "none";
-                        logoOnlySplash.classList.add("hidden");
-                    }, 300);
-                }, 600);
-            }
-        } else {
-            if (logoOnlySplash) {
-                logoOnlySplash.style.display = "none";
-                logoOnlySplash.classList.add("hidden");
-            }
-            if (welcomeSplash) {
-                welcomeSplash.style.display = "flex";
-                welcomeSplash.classList.remove("hidden");
-            }
-        }
-    });
+/* The inline script in index.html already chose which splash is visible. */
+(function fadeOutLogoSplash() {
+    const logo = $("logoOnlySplash");
+    if (!logo || logo.classList.contains("hidden")) return;
+    setTimeout(() => {
+        logo.classList.add("fade-out");
+        setTimeout(() => logo.classList.add("hidden"), 300);
+    }, 600);
 })();
-/* DELETE FEATURE */
 
-const selection  = { appointment: new Set(), patient: new Set() };
-const lastPicked = { appointment: null, patient: null };
-
-const SELECT_CFG = {
-    appointment: { bar: "apptBulkBar",    count: "apptBulkCount",    allBtn: "apptBulkAll",    all: "apptSelectAll",    body: "appointmentTable" },
-    patient:     { bar: "patientBulkBar", count: "patientBulkCount", allBtn: "patientBulkAll", all: "patientSelectAll", body: "patientTable" }
-};
-
-const rowIdOf = cb => (cb.getAttribute("onchange") || "").match(/'[^']+'\s*,\s*'([^']+)'/)?.[1] || null;
-
-function setSelected(type, id, on) {
-    if (!id) return;
-    if (on) selection[type].add(id);
-    else selection[type].delete(id);
-}
-
-function syncSelectionUI(type) {
-    const cfg  = SELECT_CFG[type];
-    const set  = selection[type];
-    const body = document.getElementById(cfg.body);
-    if (!body) return;
-
-    const boxes = body.querySelectorAll(".row-check");
-    const total = boxes.length;
-
-    boxes.forEach(b => b.closest("tr")?.classList.toggle("row-selected", b.checked));
-
-    const all = document.getElementById(cfg.all);
-    if (all) {
-        all.checked = total > 0 && set.size === total;
-        all.indeterminate = set.size > 0 && set.size < total;
-    }
-
-    document.getElementById(cfg.bar)?.classList.toggle("hidden", set.size === 0);
-
-    const count = document.getElementById(cfg.count);
-    if (count) count.textContent = set.size;
-
-    const allBtn = document.getElementById(cfg.allBtn);
-    if (allBtn) {
-        allBtn.textContent = `Select all ${total}`;
-        allBtn.classList.toggle("hidden", set.size >= total);
-    }
-}
-
-function toggleRowSelect(type, id, checked) {
-    setSelected(type, id, checked);
-    syncSelectionUI(type);
-}
-
-function toggleSelectAll(type, checked) {
-    document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`).forEach(b => {
-        b.checked = checked;
-        setSelected(type, rowIdOf(b), checked);
-    });
-    syncSelectionUI(type);
-}
-
-function clearSelection(type) {
-    selection[type].clear();
-    lastPicked[type] = null;
-    document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`).forEach(b => { b.checked = false; });
-    syncSelectionUI(type);
-}
-
-function pickRow(type, cb, shift) {
-    const boxes = [...document.querySelectorAll(`#${SELECT_CFG[type].body} .row-check`)];
-    const idx   = boxes.indexOf(cb);
-    const want  = cb.checked;
-
-    if (shift && lastPicked[type] !== null && boxes[lastPicked[type]]) {
-        const [from, to] = [lastPicked[type], idx].sort((a, b) => a - b);
-        for (let i = from; i <= to; i++) {
-            boxes[i].checked = want;
-            setSelected(type, rowIdOf(boxes[i]), want);
-        }
-    } else {
-        setSelected(type, rowIdOf(cb), want);
-    }
-
-    lastPicked[type] = idx;
-    syncSelectionUI(type);
-}
-
-Object.entries(SELECT_CFG).forEach(([type, cfg]) => {
-    const body = document.getElementById(cfg.body);
-    if (!body) return;
-
-    body.addEventListener("mousedown", e => { if (e.shiftKey) e.preventDefault(); });
-    body.addEventListener("click", e => {
-        const direct = e.target.closest(".row-check");
-        if (direct) { pickRow(type, direct, e.shiftKey); return; }
-
-        if (e.target.closest("button, a, input, label, select")) return;
-        if (String(window.getSelection?.() || "").length) return;
-
-        const cb = e.target.closest("tr")?.querySelector(".row-check");
-        if (!cb) return;
-        cb.checked = !cb.checked;
-        pickRow(type, cb, e.shiftKey);
-    });
-});
-
-document.addEventListener("keydown", e => {
-    if (e.key !== "Escape") return;
-    const modal = document.getElementById("deleteConfirmModal");
-    if (modal && !modal.classList.contains("hidden")) { closeDeleteConfirm(); return; }
-    clearSelection("appointment");
-    clearSelection("patient");
-});
-
-/*Confirm dialog  */
-let pendingDelete = null; 
+/* ---------- Delete (bulk) with undo ---------- */
+let pendingDelete = null;
+let undoSnapshot = null;
+let undoTimer = null;
 
 function requestBulkDelete(type) {
     const ids = [...selection[type]];
@@ -2942,51 +2385,50 @@ function requestBulkDelete(type) {
     pendingDelete = { type, ids };
     const idSet = new Set(ids);
     const n = ids.length;
-
-    const title = document.getElementById("deleteConfirmTitle");
-    const text  = document.getElementById("deleteConfirmText");
-    const list  = document.getElementById("deleteConfirmList");
-    const label = document.getElementById("deleteConfirmBtnLabel");
     const undoNote = `<span class="delete-note muted">You can undo this right after deleting.</span>`;
+    const listItem = (main, sub) => `<li><span class="delete-li-main">${esc(main)}</span><span class="delete-li-sub">${esc(sub)}</span></li>`;
 
     if (type === "patient") {
         const rows = patients.filter(p => idSet.has(p.id));
-        const active = appointments.filter(a =>
-            idSet.has(a.patientId) && (a.status === "Pending" || a.status === "Approved")).length;
+        const active = appointments.filter(a => idSet.has(a.patientId) && (a.status === "Pending" || a.status === "Approved")).length;
 
-        title.textContent = n === 1 ? "Delete this patient?" : `Delete ${n} patients?`;
-        label.textContent = n === 1 ? "Delete patient" : `Delete ${n} patients`;
-        text.innerHTML =
+        $("deleteConfirmTitle").textContent = n === 1 ? "Delete this patient?" : `Delete ${n} patients?`;
+        $("deleteConfirmBtnLabel").textContent = n === 1 ? "Delete patient" : `Delete ${n} patients`;
+        $("deleteConfirmText").innerHTML =
             `This will remove ${n === 1 ? "the patient" : `<strong>${n} patients</strong>`} from the clinic records.` +
             (active ? `<span class="delete-note">Their ${active} pending/approved appointment${active === 1 ? "" : "s"} and queue entries will also be removed.</span>` : "") +
             `<span class="delete-note">Completed and no-show history is kept for reports.</span>` + undoNote;
-        list.innerHTML = rows.map(p =>
-            `<li><span class="delete-li-main">${esc(p.name)}</span><span class="delete-li-sub">${esc(p.id)}</span></li>`).join("");
+        $("deleteConfirmList").innerHTML = rows.map(p => listItem(p.name, p.id)).join("");
     } else {
         const rows = appointments.filter(a => idSet.has(a.id));
 
-        title.textContent = n === 1 ? "Delete this appointment?" : `Delete ${n} appointments?`;
-        label.textContent = n === 1 ? "Delete appointment" : `Delete ${n} appointments`;
-        text.innerHTML =
-            `This will remove ${n === 1 ? "the appointment" : `<strong>${n} appointments</strong>`} and take ${n === 1 ? "it" : "them"} out of the queue.` +
-            undoNote;
-        list.innerHTML = rows.map(a =>
-            `<li><span class="delete-li-main">${esc(a.patientName)}</span>` +
-            `<span class="delete-li-sub">${esc(formatDate(a.date))} · ${esc(formatTime(a.time))} · ${esc(a.service)}</span></li>`).join("");
+        $("deleteConfirmTitle").textContent = n === 1 ? "Delete this appointment?" : `Delete ${n} appointments?`;
+        $("deleteConfirmBtnLabel").textContent = n === 1 ? "Delete appointment" : `Delete ${n} appointments`;
+        $("deleteConfirmText").innerHTML =
+            `This will remove ${n === 1 ? "the appointment" : `<strong>${n} appointments</strong>`} and take ${n === 1 ? "it" : "them"} out of the queue.` + undoNote;
+        $("deleteConfirmList").innerHTML = rows.map(a =>
+            listItem(a.patientName, `${formatDate(a.date)} · ${formatTime(a.time)} · ${a.service}`)).join("");
     }
 
-    document.getElementById("deleteConfirmModal").classList.remove("hidden");
+    openModal("deleteConfirmModal");
     setTimeout(() => document.querySelector("#deleteConfirmModal .btn-outline")?.focus(), 30);
 }
 
 function closeDeleteConfirm() {
-    document.getElementById("deleteConfirmModal").classList.add("hidden");
+    closeModal("deleteConfirmModal");
     pendingDelete = null;
 }
 
-document.getElementById("deleteConfirmModal")?.addEventListener("click", e => {
+$("deleteConfirmModal").addEventListener("click", e => {
     if (e.target.id === "deleteConfirmModal") closeDeleteConfirm();
 });
+
+const saveAllData = () => {
+    save(STORAGE.patients, patients);
+    save(STORAGE.appointments, appointments);
+    save(STORAGE.appointmentQueue, appointmentQueue);
+    save(STORAGE.walkins, walkins);
+};
 
 function confirmDelete() {
     if (!pendingDelete) { closeDeleteConfirm(); return; }
@@ -2994,50 +2436,32 @@ function confirmDelete() {
     const idSet = new Set(ids);
     const n = ids.length;
 
-    undoSnapshot = {
-        patients:         JSON.parse(JSON.stringify(patients)),
-        appointments:     JSON.parse(JSON.stringify(appointments)),
-        appointmentQueue: JSON.parse(JSON.stringify(appointmentQueue)),
-        walkins:          JSON.parse(JSON.stringify(walkins))
-    };
+    undoSnapshot = JSON.parse(JSON.stringify({ patients, appointments, appointmentQueue, walkins }));
 
     if (type === "patient") {
-        const isActiveAppt = a => idSet.has(a.patientId) && (a.status === "Pending" || a.status === "Approved");
-        const removedApptIds = new Set(appointments.filter(isActiveAppt).map(a => a.id));
+        const removedApptIds = new Set(
+            appointments.filter(a => idSet.has(a.patientId) && (a.status === "Pending" || a.status === "Approved")).map(a => a.id));
 
-        patients         = patients.filter(p => !idSet.has(p.id));
-        appointments     = appointments.filter(a => !removedApptIds.has(a.id));
+        patients = patients.filter(p => !idSet.has(p.id));
+        appointments = appointments.filter(a => !removedApptIds.has(a.id));
         appointmentQueue = appointmentQueue.filter(q => !removedApptIds.has(q.appointmentId));
-        walkins          = walkins.filter(w => !(idSet.has(w.patientId) && (w.status === "Waiting" || w.status === "Serving")));
-
-        save(STORAGE.patients, patients);
-        save(STORAGE.appointments, appointments);
-        save(STORAGE.appointmentQueue, appointmentQueue);
-        save(STORAGE.walkins, walkins);
-    }
-
-    if (type === "appointment") {
-        appointments     = appointments.filter(a => !idSet.has(a.id));
+        walkins = walkins.filter(w => !(idSet.has(w.patientId) && isActiveQueue(w)));
+    } else {
+        appointments = appointments.filter(a => !idSet.has(a.id));
         appointmentQueue = appointmentQueue.filter(q => !idSet.has(q.appointmentId));
-
-        save(STORAGE.appointments, appointments);
-        save(STORAGE.appointmentQueue, appointmentQueue);
     }
+    saveAllData();
 
     selection[type].clear();
     lastPicked[type] = null;
     closeDeleteConfirm();
     renderAll();
 
-    const noun = type === "patient" ? "patient" : "appointment";
-    showUndoToast(`${n} ${noun}${n === 1 ? "" : "s"} deleted`);
+    showUndoToast(`${n} ${type}${n === 1 ? "" : "s"} deleted`);
 }
 
-let undoSnapshot = null;
-let undoTimer = null;
-
 function showUndoToast(message) {
-    let t = document.getElementById("undoToast");
+    let t = $("undoToast");
     if (!t) {
         t = document.createElement("div");
         t.id = "undoToast";
@@ -3055,7 +2479,7 @@ function showUndoToast(message) {
 }
 
 function hideUndoToast() {
-    document.getElementById("undoToast")?.classList.remove("show");
+    $("undoToast")?.classList.remove("show");
     clearTimeout(undoTimer);
     undoSnapshot = null;
 }
@@ -3064,48 +2488,31 @@ function undoDelete() {
     const snap = undoSnapshot;
     if (!snap) return;
 
-    patients         = snap.patients;
-    appointments     = snap.appointments;
-    appointmentQueue = snap.appointmentQueue;
-    walkins          = snap.walkins;
-
-    save(STORAGE.patients, patients);
-    save(STORAGE.appointments, appointments);
-    save(STORAGE.appointmentQueue, appointmentQueue);
-    save(STORAGE.walkins, walkins);
+    ({ patients, appointments, appointmentQueue, walkins } = snap);
+    saveAllData();
 
     hideUndoToast();
     renderAll();
 }
 
-/*INITIALIZATION*/
+/* ---------- Initialization ---------- */
 document.addEventListener("DOMContentLoaded", () => {
-    syncAppointmentQueue();
+    renderServiceUI();
     renderAll();
 
     const t = today();
-    const setAttr = (id, attr) => {
-        const el = document.getElementById(id);
-        if (el) el[attr] = t;
-    };
-    setAttr("bookingDate", "min");
-    setAttr("adminAppointmentDate", "min");
-    setAttr("editAppointmentDate", "min");
-    setAttr("bookingDOB", "max");
+    $("bookingDate").min = t;
+    $("adminAppointmentDate").min = t;
+    $("editAppointmentDate").min = t;
+    $("bookingDOB").max = t;
 
-    linkScheduleFields("bookingDate", "bookingTime");
-    linkScheduleFields("adminAppointmentDate", "adminAppointmentTime");
-    linkScheduleFields("editAppointmentDate", "editAppointmentTime");
-
-    attachTimeFieldMessage("bookingTime");
-    attachTimeFieldMessage("adminAppointmentTime");
-    attachTimeFieldMessage("editAppointmentTime");
+    [["bookingDate", "bookingTime"],
+     ["adminAppointmentDate", "adminAppointmentTime"],
+     ["editAppointmentDate", "editAppointmentTime"]].forEach(([d, tm]) => setupScheduleFields(d, tm));
 
     if (sessionStorage.getItem("pecana_admin_logged_in") === "true") {
-        document.getElementById("loginPage").classList.add("hidden");
-        document.getElementById("publicApp").classList.add("hidden");
-        document.getElementById("adminApp").classList.remove("hidden");
+        showView("adminApp");
         const savedPage = sessionStorage.getItem("pecana_admin_page");
-        openAdminPage(savedPage && document.getElementById("page-" + savedPage) ? savedPage : "dashboard");
+        openAdminPage(savedPage && $("page-" + savedPage) ? savedPage : "dashboard");
     }
 });
