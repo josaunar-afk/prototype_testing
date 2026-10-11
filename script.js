@@ -1,8 +1,4 @@
-/* ============================================================
-   Pecaña Dental Clinic Management System
-   ============================================================ */
-
-/* ---------- Config & shared helpers ---------- */
+/* Config & shared helpers */
 const STORAGE = {
     patients: "pecana_patients",
     appointments: "pecana_appointments",
@@ -63,13 +59,12 @@ const nextQueue = (prefix, arr) => {
     return prefix + pad3(Math.max(0, ...nums) + 1);
 };
 
-/* Adds a per-day running number (A001, APT001 ...) to a list of rows that have a `date`. */
 const withDailyNumbers = (rows, prefix) => {
     const counters = {};
     return rows.map(r => ({ ...r, displayNo: prefix + pad3(counters[r.date] = (counters[r.date] || 0) + 1) }));
 };
 
-/* ---------- Seed data ---------- */
+/*  Dummy data */
 const SEED_PATIENTS = [
     ["Juan Dela Cruz", "09171234567", "1985-05-15", "Polangui, Albay", "Male", "Maria Dela Cruz", "Regular dental check-up"],
     ["Maria Santos", "09181234567", "1992-08-22", "Oas, Albay", "Female", "Pedro Santos", "Tooth cleaning"],
@@ -114,7 +109,6 @@ let appointmentQueue = load(STORAGE.appointmentQueue, [
 let walkins = load(STORAGE.walkins, []);
 let inventory = load(STORAGE.inventory, DEFAULT_INVENTORY.map(i => ({ ...i })));
 
-/* Make sure newly added default materials exist in older saved data */
 (function ensureInventoryHasAllMaterials() {
     let changed = false;
     DEFAULT_INVENTORY.forEach(item => {
@@ -126,7 +120,6 @@ let inventory = load(STORAGE.inventory, DEFAULT_INVENTORY.map(i => ({ ...i })));
     if (changed) save(STORAGE.inventory, inventory);
 })();
 
-/* Keep several open tabs in sync */
 window.addEventListener("storage", e => {
     if (!e.key || !Object.values(STORAGE).includes(e.key)) return;
     patients = load(STORAGE.patients, patients);
@@ -137,7 +130,7 @@ window.addEventListener("storage", e => {
     renderAll();
 });
 
-/* ---------- Services & materials (BOM) ---------- */
+/* Services & materials (BOM)*/
 const SERVICE_INFO = {
     "Dental Check-up": {
         icon: "fa-tooth",
@@ -201,7 +194,6 @@ function deductMaterials(materials) {
     save(STORAGE.inventory, inventory);
 }
 
-/* Service cards (home + services page) and every service <select> are built from SERVICE_INFO */
 function renderServiceUI() {
     const card = (name, text, label, action) => `
         <div class="service-card">
@@ -218,7 +210,7 @@ function renderServiceUI() {
     ["bookingService", "adminAppointmentService", "walkinService"].forEach(id => $(id).insertAdjacentHTML("beforeend", options));
 }
 
-/* ---------- Navigation ---------- */
+/* Navigation */
 const VIEWS = ["publicApp", "loginPage", "adminApp"];
 const showView = name => VIEWS.forEach(v => $(v).classList.toggle("hidden", v !== name));
 
@@ -245,7 +237,7 @@ function selectService(serviceName) {
     $("bookingName").focus();
 }
 
-/* ---------- Service details modal ---------- */
+/* Service details modal  */
 let pendingServiceSelection = null;
 
 function viewServiceDetails(serviceName) {
@@ -282,7 +274,7 @@ function proceedToBookService() {
     if (service) selectService(service);
 }
 
-/* ---------- Admin login & navigation ---------- */
+/* Admin login & navigation  */
 $("loginForm").addEventListener("submit", e => {
     e.preventDefault();
     const user = $("loginUsername").value.trim();
@@ -338,7 +330,6 @@ function renderAll() {
     if (currentAdminPage !== "forecast") renderForecastSummary();
 }
 
-/* ---------- Material stepper (appointment / walk-in / approval) ---------- */
 const adjustments = { appointment: {}, walkin: {}, approval: {} };
 
 const MATERIAL_SCOPES = {
@@ -386,7 +377,6 @@ document.addEventListener("click", e => {
     renderMaterialScope(scope);
 });
 
-/* Called when the service <select> changes in the appointment / walk-in modal */
 function updateMaterialPrediction(scope) {
     const cfg = MATERIAL_SCOPES[scope];
     const card = $(cfg.card);
@@ -403,7 +393,7 @@ function updateMaterialPrediction(scope) {
     }
 }
 
-/* ---------- Schedule validation ---------- */
+/*  Schedule validation */
 const CLINIC_OPEN_MIN = 7 * 60;
 const CLINIC_CLOSE_MIN = 20 * 60;
 const LUNCH_START_MIN = 12 * 60;
@@ -456,7 +446,7 @@ function setupScheduleFields(dateId, timeId) {
     });
 }
 
-/* ---------- Admin: create appointment ---------- */
+/*Admin: create appointment*/
 const patientOptions = () =>
     `<option value="">Select patient</option>` +
     patients.map(p => `<option value="${p.id}">${esc(p.name)} (${p.id})</option>`).join("");
@@ -520,7 +510,7 @@ $("adminAppointmentForm").addEventListener("submit", e => {
     renderAll();
 });
 
-/* ---------- Admin: edit appointment ---------- */
+/* Admin: edit appointment */
 function openEditAppointmentModal(id) {
     const a = appointments.find(x => x.id === id);
     if (!a) return;
@@ -575,7 +565,7 @@ $("editAppointmentForm").addEventListener("submit", e => {
     renderAll();
 });
 
-/* ---------- Row selection (bulk delete) ---------- */
+/* Row selection (bulk delete) */
 const selection = { appointment: new Set(), patient: new Set() };
 const lastPicked = { appointment: null, patient: null };
 
@@ -675,7 +665,7 @@ Object.entries(SELECT_CFG).forEach(([type, cfg]) => {
     });
 });
 
-/* ---------- Patients ---------- */
+/*  Patients */
 $("patientForm").addEventListener("submit", e => {
     e.preventDefault();
 
@@ -777,7 +767,7 @@ function renderPatients() {
     syncSelectionUI("patient");
 }
 
-/* ---------- Appointment list ---------- */
+/* Appointment list */
 function renderAppointments() {
     const table = $("appointmentTable");
     if (!table) return;
@@ -834,7 +824,7 @@ function renderAppointments() {
     syncSelectionUI("appointment");
 }
 
-/* ---------- Public booking form ---------- */
+/* Public booking form */
 $("appointmentForm").addEventListener("submit", e => {
     e.preventDefault();
 
@@ -880,7 +870,7 @@ $("appointmentForm").addEventListener("submit", e => {
     renderAll();
 });
 
-/* ---------- Approve appointment ---------- */
+/* Approve appointment */
 let pendingApprovalId = null;
 
 const approveAppointment = id => openApproveDetailsModal(id);
@@ -950,7 +940,7 @@ function confirmApproveAppointment() {
     renderAll();
 }
 
-/* ---------- Queue helpers ---------- */
+/* Queue helpers */
 const queueActions = (q, kind) =>
     q.status === "Waiting"
         ? `<button class="action-btn primary" onclick="serve${kind}('${q.number}')">Serve</button><button class="action-btn danger" onclick="noShow${kind}('${q.number}')">No-show</button>`
@@ -971,7 +961,7 @@ const queueCard = (no, q, { time = false, actions = "" } = {}) => `
 
 const isActiveQueue = q => q.status === "Waiting" || q.status === "Serving";
 
-/* ---------- Appointment queue ---------- */
+/* Appointment queue  */
 function syncAppointmentQueue() {
     appointments.forEach(a => {
         let q = appointmentQueue.find(x => x.appointmentId === a.id);
@@ -1057,7 +1047,7 @@ function noShowAppointment(number) {
     if (setAppointmentQueueStatus(number, "No-show")) renderAll();
 }
 
-/* ---------- Walk-in queue ---------- */
+/* Walk-in queue */
 function openWalkinModal(patientId = "") {
     $("walkinPatient").innerHTML = patientOptions();
     $("walkinPatient").value = patientId;
@@ -1134,7 +1124,7 @@ function noShowWalkin(number) {
     if (setWalkinStatus(number, "No-show")) renderAll();
 }
 
-/* ---------- Daily schedule ---------- */
+/* Daily schedule  */
 function renderSchedule() {
     const table = $("scheduleTable");
     if (!table) return;
@@ -1156,7 +1146,7 @@ function renderSchedule() {
         : `<tr><td colspan="5">No patients scheduled for today.</td></tr>`;
 }
 
-/* ---------- Inventory ---------- */
+/* Inventory  */
 const stockBadge = i =>
     `<span class="badge ${i.stock <= i.minimum ? "no-show" : "approved"}">${i.stock <= i.minimum ? "Restock" : "OK"}</span>`;
 
@@ -1198,7 +1188,7 @@ function handleRestockUpdate(e) {
     return false;
 }
 
-/* ---------- Restock forecast ---------- */
+/* Restock forecast  */
 function getUpcoming(days = 30) {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -1279,7 +1269,7 @@ function suggestRestock(name, stock, lead) {
     openAdminPage("inventory");
 }
 
-/* ---------- Public queue status ---------- */
+/*  Public queue status */
 function renderPublicQueues() {
     const aBox = $("publicAppointmentQueue");
     const wBox = $("publicWalkinQueue");
@@ -1293,7 +1283,7 @@ function renderPublicQueues() {
     wBox.innerHTML = w.length ? w.map(q => queueCard(q.number, q)).join("") : `<div class="empty-state">No walk-in patients waiting.</div>`;
 }
 
-/* ---------- Dashboard ---------- */
+/*  Dashboard  */
 const charts = {};
 function drawChart(key, canvasId, config) {
     const ctx = $(canvasId)?.getContext("2d");
@@ -1532,7 +1522,7 @@ function renderDashboard() {
     }
 }
 
-/* ---------- Reports ---------- */
+/*  Reports */
 function inReportDateRange(dateValue) {
     const start = $("reportStartDate").value;
     const end = $("reportEndDate").value;
@@ -1718,7 +1708,7 @@ function printFilteredReport() {
     w.document.close();
 }
 
-/* ---------- Advance calendar ---------- */
+/* Advance calendar */
 let advanceCalendar;
 
 const CAL_DURATION = {
@@ -1908,7 +1898,7 @@ function openCalendarEventDetails(id) {
     openModal("calendarEventModal");
 }
 
-/* ---------- Notifications ---------- */
+/* Notifications */
 let ntShownQuery = null;
 
 const ntPlural    = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -2357,13 +2347,12 @@ function updatePatientNotifications() {
     bell?.setAttribute("aria-label", changed ? `Appointment updates, ${changed} new` : "Appointment status");
 }
 
-/* ---------- Welcome / loading splash ---------- */
+/*  Welcome / loading splash  */
 function closeWelcomeSplash() {
     sessionStorage.setItem("pecana_entered", "true");
     $("welcomeSplash")?.classList.add("hidden");
 }
 
-/* The inline script in index.html already chose which splash is visible. */
 (function fadeOutLogoSplash() {
     const logo = $("logoOnlySplash");
     if (!logo || logo.classList.contains("hidden")) return;
@@ -2373,7 +2362,7 @@ function closeWelcomeSplash() {
     }, 600);
 })();
 
-/* ---------- Delete (bulk) with undo ---------- */
+/*  Delete (bulk) with undo */
 let pendingDelete = null;
 let undoSnapshot = null;
 let undoTimer = null;
@@ -2495,7 +2484,7 @@ function undoDelete() {
     renderAll();
 }
 
-/* ---------- Initialization ---------- */
+/* Initialization */
 document.addEventListener("DOMContentLoaded", () => {
     renderServiceUI();
     renderAll();
