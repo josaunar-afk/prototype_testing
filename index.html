@@ -123,9 +123,10 @@
                     </button>
                 </div>
                 <form class="nt-search" onsubmit="checkPatientNotifications(); return false;">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="ntPatientSearch" autocomplete="off"
-                           placeholder="Contact number or full name">
+                    <i class="fa-solid fa-mobile-screen"></i>
+                    <input type="tel" id="ntPatientSearch" autocomplete="off" inputmode="numeric"
+                    title="Enter the 11-digit contact number you booked with"
+                    placeholder="Contact number (e.g. 09171234567)">
                     <button type="submit">Check</button>
                 </form>
                 <div id="ntPatientList" class="nt-body"></div>
@@ -192,61 +193,135 @@
             <p>Provide your information and preferred schedule.</p>
         </div>
 
-        <form id="appointmentForm" class="form-card">
-            <div class="form-grid">
+        <form id="appointmentForm" class="form-card booking-card">
+
+            <!-- Step indicator -->
+            <ol class="booking-steps" id="bookingSteps" aria-label="Booking progress">
+                <li class="active" data-step="1">
+                    <span class="bs-num">1</span>
+                    <span class="bs-label">Patient Information</span>
+                </li>
+                <li class="bs-line" aria-hidden="true"></li>
+                <li data-step="2">
+                    <span class="bs-num">2</span>
+                    <span class="bs-label">Appointment Details</span>
+                </li>
+            </ol>
+
+            <!-- STEP 1: PATIENT INFORMATION -->
+            <div class="booking-step active" id="bookingStep1">
+                <div class="booking-step-head">
+                    <h3>Patient Information</h3>
+                    <p>Tell us who the appointment is for.</p>
+                </div>
+
+                <div class="form-grid">
                 <div>
-                    <label>Full Name</label>
-                    <input id="bookingName" required placeholder="e.g. Dela Cruz, Juan M.">
+                    <label for="bookingLastName">Last Name <em class="req">*</em></label>
+                    <input id="bookingLastName" required autocomplete="family-name" placeholder="e.g. Dela Cruz">
                 </div>
 
                 <div>
-                    <label>Contact Number</label>
-                    <input id="bookingContact" required>
+                    <label for="bookingFirstName">First Name <em class="req">*</em></label>
+                    <input id="bookingFirstName" required autocomplete="given-name" placeholder="e.g. Juan">
                 </div>
 
                 <div>
-                    <label>Email Address</label>
-                    <input type="email" id="bookingEmail" placeholder="you@example.com">
+                    <label for="bookingMiddleName">Middle Name <span class="opt">(optional)</span></label>
+                    <input id="bookingMiddleName" autocomplete="additional-name" placeholder="e.g. Mendoza">
                 </div>
 
                 <div>
-                    <label>Address</label>
-                    <input id="bookingAddress" placeholder="Street, Barangay, City/Municipality">
-                </div>
-
-                <div>
-                    <label>Date of Birth</label>
+                    <label for="bookingDOB">Date of Birth</label>
                     <input type="date" id="bookingDOB">
                 </div>
 
                 <div>
-                    <label>Date of Appointment</label>
-                    <input type="date" id="bookingDate" required>
-                </div>
-
-                <div>
-                    <label>Time</label>
-                    <input type="time" id="bookingTime" min="07:00" max="20:00" required>
-                </div>
-
-                <div>
-                    <label>Dental Service</label>
-                    <select id="bookingService" required>
-                        <option value="">Select service</option>
+                    <label for="bookingGender">Gender <em class="req">*</em></label>
+                    <select id="bookingGender" required>
+                        <option value="">Select gender</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Other</option>
                     </select>
                 </div>
 
-                <div class="full">
-                    <label>Dental Concern</label>
-                    <textarea id="bookingConcern" placeholder="Briefly describe your concern"></textarea>
+                <div>
+                    <label for="bookingContact">Contact Number <em class="req">*</em></label>
+                    <input type="tel" id="bookingContact" required autocomplete="tel"
+                    inputmode="numeric"
+                    title="Enter an 11-digit mobile number starting with 09, for example 09171234567"
+                    placeholder="e.g. 09171234567">
                 </div>
 
-                <button class="btn-primary" type="submit">Submit Appointment</button>
+                <div>
+                    <label for="bookingEmail">Email Address</label>
+                    <input type="email" id="bookingEmail" autocomplete="email" placeholder="you@example.com">
+                </div>
+
+                <div>
+                    <label for="bookingAddress">Address</label>
+                    <input id="bookingAddress" autocomplete="street-address" placeholder="Street, Barangay, City/Municipality">
+                </div>
+            </div>
+                <div class="booking-actions end">
+                    <button type="button" class="btn-primary" onclick="bookingNext()">
+                        Next <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 2: APPOINTMENT DETAILS -->
+            <div class="booking-step" id="bookingStep2">
+                <div class="booking-step-head">
+                    <h3>Appointment Details</h3>
+                    <p>Choose your preferred schedule and service.</p>
+                </div>
+
+                <div class="booking-summary">
+                    <div class="booking-summary-ico"><i class="fa-solid fa-user"></i></div>
+                    <div class="booking-summary-info">
+                        <small>Booking for</small>
+                        <strong id="bookingSummaryName">-</strong>
+                        <span id="bookingSummaryContact">-</span>
+                    </div>
+                    <button type="button" class="booking-summary-edit" onclick="setBookingStep(1)">Edit</button>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label for="bookingDate">Date of Appointment <em class="req">*</em></label>
+                        <input type="date" id="bookingDate" required>
+                    </div>
+
+                    <div>
+                        <label for="bookingTime">Time <em class="req">*</em></label>
+                        <input type="time" id="bookingTime" min="07:00" max="20:00" required>
+                    </div>
+
+                    <div class="full">
+                    <label>Dental Services <em class="req">*</em> <span class="opt">(select all that apply)</span></label>
+                    <div class="service-checklist" data-scope="booking" role="group" aria-label="Dental services"></div>
+                 </div>
+
+                    <div class="full">
+                        <label for="bookingConcern">Dental Concern</label>
+                        <textarea id="bookingConcern" placeholder="Briefly describe your concern"></textarea>
+                    </div>
+                </div>
+
+                <div class="booking-actions">
+                    <button type="button" class="btn-outline" onclick="setBookingStep(1)">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-calendar-check"></i> Submit Appointment
+                    </button>
+                </div>
             </div>
         </form>
     </div>
 </section>
-
 <!-- QUEUE STATUS -->
 <section id="public-queue-status" class="public-page">
     <div class="public-title">
@@ -662,11 +737,44 @@
         </div>
     </div>
 </section>
+<!-- RESTOCK FORECAST -->
+<section id="page-forecast" class="admin-page">
+    <div class="page-actions">
+        <div><p>Projected material usage for the next 30 days (pending and approved appointments).</p></div>
+    </div>
 
+    <div class="forecast-cards">
+        <div class="forecast-stat">
+            <i class="fa-solid fa-calendar-check"></i>
+            <strong id="forecastAppointments">0</strong>
+            <span>Upcoming Appointments</span>
+        </div>
+        <div class="forecast-stat">
+            <i class="fa-solid fa-boxes-stacked"></i>
+            <strong id="forecastMaterials">0</strong>
+            <span>Materials Tracked</span>
+        </div>
+        <div class="forecast-stat">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <strong id="forecastWarnings">0</strong>
+            <span>Restock Warnings</span>
+        </div>
+    </div>
+
+    <div class="content-card">
+        <h2>Material Forecast</h2>
+        <div id="forecastResults"></div>
+    </div>
+</section>
 <!-- INVENTORY -->
 <section id="page-inventory" class="admin-page">
     <div class="page-actions">
-        <div><p>Current materials and stock levels.</p></div>
+        <div><p>Current materials and stock levels, grouped by dental service.</p></div>
+
+        <div class="search-wrapper">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="inventorySearch" placeholder="Search material or service..." onkeyup="renderInventory()">
+        </div>
     </div>
 
     <div class="content-card table-card">
@@ -680,39 +788,6 @@
         </div>
     </div>
 </section>
-
-<!-- FORECAST -->
-<section id="page-forecast" class="admin-page">
-    <div class="page-actions">
-        <div><p>Forecast demand using appointments, BOM usage and supplier lead time.</p></div>
-    </div>
-
-    <div class="forecast-cards">
-        <div class="forecast-stat">
-            <i class="fa-solid fa-calendar-days"></i>
-            <strong id="forecastAppointments">0</strong>
-            <span>Upcoming Procedures</span>
-        </div>
-
-        <div class="forecast-stat">
-            <i class="fa-solid fa-box"></i>
-            <strong id="forecastMaterials">0</strong>
-            <span>Materials</span>
-        </div>
-
-        <div class="forecast-stat">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <strong id="forecastWarnings">0</strong>
-            <span>Warnings</span>
-        </div>
-    </div>
-
-    <div class="content-card">
-        <h2>Forecast Analysis</h2>
-        <div id="forecastResults"></div>
-    </div>
-</section>
-
 <!-- REPORTS -->
 <section id="page-reports" class="admin-page">
     <div class="page-actions reports-actions">
@@ -817,10 +892,8 @@
             </div>
 
             <div class="full">
-                <label>Dental Service</label>
-                <select id="adminAppointmentService" required onchange="updateMaterialPrediction('appointment')">
-                    <option value="">Select service</option>
-                </select>
+                <label>Dental Services <span class="opt">(select all that apply)</span></label>
+                <div class="service-checklist" data-scope="appointment" role="group" aria-label="Dental services"></div>
             </div>
 
             <div id="materialInsightCard" class="insight-card hidden full">
@@ -852,16 +925,43 @@
             <button type="button" onclick="closeAddPatientModal()">×</button>
         </div>
         <form id="patientForm" class="form-grid admin-form">
-            <div><label>Full Name</label><input id="patientName" required placeholder="e.g. Dela Cruz, Juan M."></div>
-            <div><label>Contact Number</label><input id="patientContact" required></div>
-            <div><label>Date of Birth</label><input type="date" id="patientDOB"></div>
             <div>
-                <label>Gender</label>
+                <label for="patientLastName">Last Name <em class="req">*</em></label>
+                <input id="patientLastName" required placeholder="e.g. Dela Cruz">
+            </div>
+            <div>
+                <label for="patientFirstName">First Name <em class="req">*</em></label>
+                <input id="patientFirstName" required placeholder="e.g. Juan">
+            </div>
+
+            <div>
+                <label for="patientMiddleName">Middle Name <span class="opt">(optional)</span></label>
+                <input id="patientMiddleName" placeholder="e.g. Mendoza">
+            </div>
+            <div>
+                <label for="patientDOB">Date of Birth</label>
+                <input type="date" id="patientDOB">
+            </div>
+
+            <div>
+                <label for="patientGender">Gender</label>
                 <select id="patientGender">
                     <option>Male</option><option>Female</option><option>Other</option>
                 </select>
             </div>
-            <div class="full"><label>Address</label><input id="patientAddress"></div>
+            <div>
+                <label for="patientContact">Contact Number <em class="req">*</em></label>
+                <input id="patientContact" type="tel" required autocomplete="off"
+                inputmode="numeric"
+                title="Enter an 11-digit mobile number starting with 09, for example 09171234567"
+                placeholder="e.g. 09171234567">
+            </div>
+
+            <div class="full">
+                <label for="patientAddress">Address</label>
+                <input id="patientAddress" placeholder="Street, Barangay, City/Municipality">
+            </div>
+
             <div class="full form-buttons">
                 <button type="submit" class="btn-primary">Save Patient</button>
                 <button type="button" class="btn-outline" onclick="closeAddPatientModal()">Cancel</button>
@@ -891,11 +991,9 @@
             </div>
 
             <div class="full">
-                <label>Dental Service</label>
-                <select id="walkinService" required onchange="updateMaterialPrediction('walkin')">
-                    <option value="">Select service</option>
-                </select>
-            </div>
+            <label>Dental Services <span class="opt">(select all that apply)</span></label>
+            <div class="service-checklist" data-scope="walkin" role="group" aria-label="Dental services"></div>
+        </div>
 
             <div id="walkinMaterialInsightCard" class="insight-card hidden full">
                 <div class="insight-header">
@@ -930,25 +1028,80 @@
     </div>
 </div>
 
-<!-- RESTOCK -->
-<div id="restockModal" class="modal hidden">
-    <div class="modal-card">
+<!-- ADD / EDIT MATERIAL -->
+<div id="materialModal" class="modal hidden">
+    <div class="modal-card material-modal-card">
         <div class="modal-header">
-            <h2>Update Inventory</h2>
-            <button type="button" onclick="closeModal('restockModal')">×</button>
+            <h2 id="materialModalTitle">Add Material</h2>
+            <button type="button" onclick="closeMaterialModal()">×</button>
         </div>
-        <form id="restockForm" onsubmit="handleRestockUpdate(event)">
-            <input type="hidden" id="restockId">
 
-            <label>Material Name</label>
-            <input id="restockName" disabled style="background:#f0f0f0;">
+        <form id="materialForm" class="form-grid admin-form material-form">
+            <input type="hidden" id="materialId">
 
-            <label>Current Stock Level</label>
-            <input type="number" id="restockValue" required min="0">
+            <div class="full">
+                <p class="form-subtitle">Register a material or tool and choose which dental services use it. Consumables are deducted automatically when a procedure is completed.</p>
+            </div>
 
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button type="submit" class="btn-primary" style="flex:1;">Update Stock</button>
-                <button type="button" class="btn-outline" onclick="closeModal('restockModal')" style="flex:1;">Cancel</button>
+            <div class="full">
+                <label>Material / Tool Name</label>
+                <input id="materialName" required placeholder="e.g. Dental Anesthetic">
+            </div>
+
+            <div>
+                <label>Type</label>
+                <select id="materialType">
+                    <option value="consumable">Consumable (deducted per use)</option>
+                    <option value="reusable">Reusable tool (not deducted)</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Unit</label>
+                <select id="materialUnit">
+                    <option value="pcs">pcs</option>
+                    <option value="box">box</option>
+                    <option value="pack">pack</option>
+                    <option value="bottle">bottle</option>
+                    <option value="tube">tube</option>
+                    <option value="vial">vial</option>
+                    <option value="cartridge">cartridge</option>
+                    <option value="set">set</option>
+                    <option value="jar">jar</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Current Stock</label>
+                <input type="number" id="materialStock" min="0" required value="0">
+            </div>
+
+            <div>
+                <label>Minimum Level</label>
+                <input type="number" id="materialMin" min="0" required value="5">
+            </div>
+
+            <div class="full">
+                <label>Supplier Lead Time (days)</label>
+                <input type="number" id="materialLead" min="1" required value="3">
+            </div>
+
+            <div class="full">
+                <div class="ms-head">
+                    <label>Used in Services</label>
+                    <div>
+                        <button type="button" class="ms-toggle" onclick="setAllMaterialServices(true)">Select all</button>
+                        <button type="button" class="ms-toggle" onclick="setAllMaterialServices(false)">Clear</button>
+                    </div>
+                </div>
+                <div id="materialServiceList" class="material-service-list"></div>
+            </div>
+
+            <div class="full form-buttons">
+                <button type="submit" class="btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> <span id="materialSaveLabel">Add Material</span>
+                </button>
+                <button type="button" class="btn-outline" onclick="closeMaterialModal()">Cancel</button>
             </div>
         </form>
     </div>

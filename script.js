@@ -4,7 +4,8 @@ const STORAGE = {
     appointments: "pecana_appointments",
     appointmentQueue: "pecana_appointment_queue",
     walkins: "pecana_walkin_queue",
-    inventory: "pecana_inventory"
+    inventory: "pecana_inventory",
+    bom: "pecana_bom_v2"
 };
 const NT_KEYS = {
     adminRead: "pecana_admin_notif_read",
@@ -90,15 +91,27 @@ const SEED_PATIENTS = [
     ({ id: "P" + pad3(i + 1), name, contact, email: "", dob, address, gender, emergency, concern, status: "Active" }));
 
 const DEFAULT_INVENTORY = [
-    { id: "I001", name: "Composite Resin", stock: 12, minimum: 5, leadTime: 5 },
-    { id: "I002", name: "Dental Floss", stock: 10, minimum: 5, leadTime: 3 },
-    { id: "I003", name: "Bonding Agent", stock: 8, minimum: 5, leadTime: 5 },
-    { id: "I004", name: "Suture Material", stock: 15, minimum: 5, leadTime: 4 },
-    { id: "I005", name: "Orthodontic Brackets", stock: 20, minimum: 8, leadTime: 7 },
-    { id: "I006", name: "Archwire", stock: 10, minimum: 4, leadTime: 7 },
-    { id: "I007", name: "Elastic Ligatures", stock: 50, minimum: 20, leadTime: 5 }
+    { id: "I001", name: "Composite Resin",           stock: 12,  minimum: 5,  leadTime: 5,  unit: "tube" },
+    { id: "I002", name: "Dental Floss",              stock: 10,  minimum: 5,  leadTime: 3,  unit: "pcs" },
+    { id: "I003", name: "Bonding Agent",             stock: 8,   minimum: 5,  leadTime: 5,  unit: "bottle" },
+    { id: "I004", name: "Suture Material",           stock: 15,  minimum: 5,  leadTime: 4,  unit: "pcs" },
+    { id: "I005", name: "Orthodontic Brackets",      stock: 20,  minimum: 8,  leadTime: 7,  unit: "pcs" },
+    { id: "I006", name: "Archwire",                  stock: 10,  minimum: 4,  leadTime: 7,  unit: "pcs" },
+    { id: "I007", name: "Elastic Ligatures",         stock: 50,  minimum: 20, leadTime: 5,  unit: "pcs" },
+    { id: "I008", name: "Buccal Tubes",              stock: 40,  minimum: 12, leadTime: 7,  unit: "pcs" },
+    { id: "I009", name: "Alginate",                  stock: 15,  minimum: 5,  leadTime: 5,  unit: "pack" },
+    { id: "I010", name: "Dental Stone",              stock: 12,  minimum: 4,  leadTime: 5,  unit: "pack" },
+    { id: "I011", name: "Pontics",                   stock: 20,  minimum: 6,  leadTime: 10, unit: "pcs" },
+    { id: "I012", name: "Etchant",                   stock: 12,  minimum: 4,  leadTime: 5,  unit: "bottle" },
+    { id: "I013", name: "Calcium Hydroxide",         stock: 10,  minimum: 3,  leadTime: 5,  unit: "tube" },
+    { id: "I014", name: "Dental Anesthetic",         stock: 40,  minimum: 10, leadTime: 4,  unit: "cartridge" },
+    { id: "I015", name: "Dental Needles",            stock: 100, minimum: 30, leadTime: 4,  unit: "pcs" },
+    { id: "I016", name: "Scaler / Hand Instruments", stock: 10,  minimum: 3,  leadTime: 7,  unit: "set", reusable: true },
+    { id: "I017", name: "Mouthwash",                 stock: 10,  minimum: 3,  leadTime: 3,  unit: "bottle" },
+    { id: "I018", name: "Prophy Brush",              stock: 40,  minimum: 10, leadTime: 5,  unit: "pcs" },
+    { id: "I019", name: "Pumice",                    stock: 10,  minimum: 3,  leadTime: 5,  unit: "jar" },
+    { id: "I020", name: "Disposable Gloves",         stock: 200, minimum: 40, leadTime: 3,  unit: "pcs" }
 ];
-
 let patients = load(STORAGE.patients, SEED_PATIENTS);
 let appointments = load(STORAGE.appointments, [
     { id: "APT001", patientId: "P001", patientName: "Juan Dela Cruz", date: today(), time: "09:00", service: "Dental Check-up", status: "Approved", queueStatus: "Waiting", customMaterials: { "Dental Floss": 1 } }
@@ -112,21 +125,27 @@ let inventory = load(STORAGE.inventory, DEFAULT_INVENTORY.map(i => ({ ...i })));
 (function ensureInventoryHasAllMaterials() {
     let changed = false;
     DEFAULT_INVENTORY.forEach(item => {
-        if (!inventory.some(i => i.id === item.id || i.name === item.name)) {
+        const existing = inventory.find(i => i.id === item.id || i.name === item.name);
+        if (!existing) {
             inventory.push({ ...item });
+            changed = true;
+        } else if (!existing.unit && item.unit) {
+            existing.unit = item.unit;
             changed = true;
         }
     });
     if (changed) save(STORAGE.inventory, inventory);
 })();
-
-window.addEventListener("storage", e => {
+   window.addEventListener("storage", e => {
     if (!e.key || !Object.values(STORAGE).includes(e.key)) return;
     patients = load(STORAGE.patients, patients);
     appointments = load(STORAGE.appointments, appointments);
     appointmentQueue = load(STORAGE.appointmentQueue, appointmentQueue);
     walkins = load(STORAGE.walkins, walkins);
     inventory = load(STORAGE.inventory, inventory);
+    const savedBom = readJSON(STORAGE.bom, null);
+    if (savedBom) BOM = savedBom;
+    applyUniversalMaterials();   // <-- the new line
     renderAll();
 });
 
@@ -139,6 +158,14 @@ const SERVICE_INFO = {
         duration: "20–30 minutes",
         idealFor: "Anyone due for a routine oral health review",
         includes: ["Visual and manual oral examination", "Gum and bite assessment", "Personalized oral hygiene advice"]
+    },
+        "Prosthodontics": {
+        icon: "fa-crown",
+        short: "Replacement and restoration of missing teeth.",
+        desc: "A specialty that designs and fits dental prosthetics such as crowns, bridges, and dentures to restore missing or severely damaged teeth, bringing back chewing function, speech, and a natural smile.",
+        duration: "45–60 minutes (multiple visits)",
+        idealFor: "Patients with missing, broken, or heavily worn teeth",
+        includes: ["Consultation and oral assessment", "Impressions and model fabrication", "Fitting, adjustment, and aftercare guidance"]
     },
     "Dental Cleaning": {
         icon: "fa-wand-magic-sparkles",
@@ -175,25 +202,96 @@ const SERVICE_INFO = {
 };
 const SERVICES = Object.keys(SERVICE_INFO);
 
-const BOM = {
-    "Dental Check-up": { "Dental Floss": 1 },
-    "Dental Cleaning": { "Dental Floss": 2 },
-    "Tooth Restoration": { "Composite Resin": 1, "Bonding Agent": 1 },
-    "Tooth Extraction": { "Suture Material": 2 },
-    "Braces": { "Orthodontic Brackets": 20, "Archwire": 2, "Elastic Ligatures": 20 }
+const DEFAULT_BOM = {
+    "Dental Check-up":   { "Dental Floss": 1 },
+    "Prosthodontics":    { "Alginate": 1, "Dental Stone": 1, "Pontics": 1 },
+    "Dental Cleaning":   { "Scaler / Hand Instruments": 1, "Mouthwash": 1, "Prophy Brush": 1, "Pumice": 1 },
+    "Tooth Restoration": { "Composite Resin": 1, "Bonding Agent": 1, "Etchant": 1, "Calcium Hydroxide": 1 },
+    "Tooth Extraction":  { "Dental Anesthetic": 1, "Dental Needles": 1 },
+    "Braces":            { "Orthodontic Brackets": 20, "Archwire": 2, "Buccal Tubes": 4, "Elastic Ligatures": 20 }
 };
 
+let BOM = { ...DEFAULT_BOM, ...(readJSON(STORAGE.bom, null) || {}) };
+/* Materials used in EVERY service (auto-added to each procedure) */
+const UNIVERSAL_MATERIALS = { "Disposable Gloves": 1 };
+
+function applyUniversalMaterials() {
+    SERVICES.forEach(service => {
+        BOM[service] = { ...(BOM[service] || {}) };
+        Object.entries(UNIVERSAL_MATERIALS).forEach(([name, qty]) => {
+            if (!(name in BOM[service])) BOM[service][name] = qty;
+        });
+    });
+}
+applyUniversalMaterials();
+// A record can have several services ("Dental Cleaning, Braces"); older records have just one
+const servicesOf = r =>
+    Array.isArray(r.services) && r.services.length
+        ? r.services
+        : String(r.service || "").split(",").map(s => s.trim()).filter(Boolean);
+
+// Combined materials for a list of services (shared materials like gloves are counted once per visit)
+function bomForServices(list) {
+    const total = {};
+    list.forEach(s => Object.entries(BOM[s] || {}).forEach(([name, qty]) => {
+        total[name] = name in UNIVERSAL_MATERIALS
+            ? Math.max(total[name] || 0, qty)
+            : (total[name] || 0) + qty;
+    }));
+    return total;
+}
+
 const materialsFor = a =>
-    a.customMaterials && Object.keys(a.customMaterials).length ? a.customMaterials : (BOM[a.service] || {});
+    a.customMaterials && Object.keys(a.customMaterials).length ? a.customMaterials : bomForServices(servicesOf(a));
 
 function deductMaterials(materials) {
     Object.entries(materials).forEach(([name, qty]) => {
         const item = inventory.find(x => x.name === name);
-        if (item) item.stock = Math.max(0, item.stock - qty);
+        if (item && !item.reusable) item.stock = Math.max(0, item.stock - qty);
     });
     save(STORAGE.inventory, inventory);
 }
+/* Service checklists (patients can pick more than one service) */
+const checklistBoxes = scope =>
+    [...document.querySelectorAll(`.service-checklist[data-scope="${scope}"] .svc-check-input`)];
 
+const selectedServices = scope => checklistBoxes(scope).filter(c => c.checked).map(c => c.value);
+
+function setSelectedServices(scope, names = []) {
+    checklistBoxes(scope).forEach(c => {
+        c.checked = names.includes(c.value);
+        c.setCustomValidity("");
+    });
+}
+
+function requireService(scope) {
+    const boxes = checklistBoxes(scope);
+    if (!boxes.length) return true;
+    const ok = boxes.some(c => c.checked);
+    boxes[0].setCustomValidity(ok ? "" : "Please select at least one dental service.");
+    if (!ok) boxes[0].reportValidity();
+    return ok;
+}
+
+function renderServiceChecklists() {
+    document.querySelectorAll(".service-checklist").forEach(box => {
+        const scope = box.dataset.scope;
+        box.innerHTML = SERVICES.map((s, i) => `
+            <label class="svc-check" for="svc-${scope}-${i}">
+                <input type="checkbox" class="row-check svc-check-input" id="svc-${scope}-${i}" value="${esc(s)}">
+                <i class="fa-solid ${SERVICE_INFO[s].icon}"></i>
+                <span>${esc(s)}</span>
+            </label>`).join("");
+    });
+}
+
+document.addEventListener("change", e => {
+    const box = e.target.closest?.(".svc-check-input");
+    if (!box) return;
+    const scope = box.closest(".service-checklist").dataset.scope;
+    checklistBoxes(scope)[0].setCustomValidity("");
+    if (scope === "appointment" || scope === "walkin") updateMaterialPrediction(scope);
+});
 function renderServiceUI() {
     const card = (name, text, label, action) => `
         <div class="service-card">
@@ -206,8 +304,7 @@ function renderServiceUI() {
     $("homeServiceGrid").innerHTML = SERVICES.map(n => card(n, SERVICE_INFO[n].desc, "See More Details", "viewServiceDetails")).join("");
     $("servicesPageGrid").innerHTML = SERVICES.map(n => card(n, SERVICE_INFO[n].short, "Book This Service", "selectService")).join("");
 
-    const options = SERVICES.map(n => `<option>${n}</option>`).join("");
-    ["bookingService", "adminAppointmentService", "walkinService"].forEach(id => $(id).insertAdjacentHTML("beforeend", options));
+        renderServiceChecklists();
 }
 
 /* Navigation */
@@ -233,10 +330,9 @@ function logout() {
 
 function selectService(serviceName) {
     showPublicPage("appointment");
-    $("bookingService").value = serviceName;
-    $("bookingName").focus();
+    setSelectedServices("booking", [serviceName]);
+    $("bookingLastName").focus();
 }
-
 /* Service details modal  */
 let pendingServiceSelection = null;
 
@@ -382,8 +478,8 @@ function updateMaterialPrediction(scope) {
     const card = $(cfg.card);
     if (!card) return;
 
-    const materials = BOM[$(cfg.select).value];
-    if (materials && Object.keys(materials).length) {
+    const materials = bomForServices(selectedServices(scope));
+    if (Object.keys(materials).length) {
         card.classList.remove("hidden");
         adjustments[scope] = { ...materials };
         renderMaterialScope(scope);
@@ -489,6 +585,8 @@ $("adminAppointmentForm").addEventListener("submit", e => {
 
     const patient = patients.find(p => p.id === $("adminAppointmentPatient").value);
     if (!patient) { alert("Please select a patient."); return; }
+    if (!requireService("appointment")) return;
+    const services = selectedServices("appointment");
 
     const appointment = {
         id: nextId("APT", appointments),
@@ -496,7 +594,8 @@ $("adminAppointmentForm").addEventListener("submit", e => {
         patientName: patient.name,
         date,
         time,
-        service: $("adminAppointmentService").value,
+        service: services.join(", "),
+        services,
         status: "Pending",
         queueStatus: null,
         customMaterials: { ...adjustments.appointment }
@@ -669,9 +768,17 @@ Object.entries(SELECT_CFG).forEach(([type, cfg]) => {
 $("patientForm").addEventListener("submit", e => {
     e.preventDefault();
 
-    const name = $("patientName").value.trim();
-    if (!name) { alert("Please enter the patient's name."); return; }
+    const last = $("patientLastName").value.trim();
+    const first = $("patientFirstName").value.trim();
+    const middle = $("patientMiddleName").value.trim();
+    if (!last || !first) { alert("Please enter the patient's last name and first name."); return; }
+
+    // Saved as "Last, First Middle"
+    const name = `${last}, ${first}${middle ? " " + middle : ""}`;
     if (patients.some(p => p.name.toLowerCase() === name.toLowerCase())) { alert("This patient is already registered."); return; }
+
+    const contactMsg = contactError($("patientContact").value);          // <-- NEW
+    if (contactMsg) { $("patientContact").reportValidity(); return; }    // <-- NEW
 
     const patient = {
         id: nextId("P", patients),
@@ -823,34 +930,97 @@ function renderAppointments() {
 
     syncSelectionUI("appointment");
 }
+/* Public booking: two-step form */
+let bookingStep = 1;
 
+const BOOKING_STEP1_FIELDS = [
+    "bookingLastName", "bookingFirstName", "bookingMiddleName",
+    "bookingDOB", "bookingGender", "bookingContact", "bookingEmail", "bookingAddress"
+];
+
+// Saved as "Last, First Middle" to match the clinic's naming format
+const bookingFullName = () => {
+    const last = $("bookingLastName").value.trim();
+    const first = $("bookingFirstName").value.trim();
+    const middle = $("bookingMiddleName").value.trim();
+    return `${last}, ${first}${middle ? " " + middle : ""}`;
+};
+
+function setBookingStep(step) {
+    bookingStep = step;
+
+    document.querySelectorAll("#appointmentForm .booking-step")
+        .forEach(el => el.classList.toggle("active", el.id === "bookingStep" + step));
+
+    document.querySelectorAll("#bookingSteps li[data-step]").forEach(li => {
+        const n = Number(li.dataset.step);
+        li.classList.toggle("active", n === step);
+        li.classList.toggle("done", n < step);
+    });
+    $("bookingSteps").classList.toggle("step-2", step === 2);
+
+    if (step === 2) {
+        $("bookingSummaryName").textContent = bookingFullName();
+        $("bookingSummaryContact").textContent = $("bookingContact").value.trim() || "-";
+    }
+
+    $("appointmentForm").scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function bookingNext() {
+    for (const id of BOOKING_STEP1_FIELDS) {
+        const el = $(id);
+        el.setCustomValidity(el.required && !el.value.trim() ? "Please fill out this field." : "");
+        if (id === "bookingContact" && el.value.trim()) el.setCustomValidity(contactError(el.value));   // <-- NEW
+        if (!el.reportValidity()) return;
+    }
+    setBookingStep(2);
+}
+
+BOOKING_STEP1_FIELDS.forEach(id => $(id).addEventListener("input", () => $(id).setCustomValidity("")));
+
+// Pressing Enter on step 1 goes to the next step instead of submitting
+$("appointmentForm").addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.target.tagName === "TEXTAREA") return;
+    if (bookingStep === 1) { e.preventDefault(); bookingNext(); }
+});
 /* Public booking form */
 $("appointmentForm").addEventListener("submit", e => {
     e.preventDefault();
+
+    // CHANGE 1: on step 1, "submit" just moves to step 2
+    if (bookingStep === 1) { bookingNext(); return; }
 
     const dateEl = $("bookingDate");
     const timeEl = $("bookingTime");
     const date = dateEl.value;
     const time = timeEl.value;
-    const name = $("bookingName").value.trim();
+
+    // CHANGE 2: was $("bookingName").value.trim()
+    const name = bookingFullName();
+
     const contact = $("bookingContact").value.trim();
     const email = $("bookingEmail").value.trim();
     const address = $("bookingAddress").value.trim();
     const dob = $("bookingDOB").value;
-    const service = $("bookingService").value;
+    const gender = $("bookingGender").value;
+    const services = selectedServices("booking");
+    const service = services.join(", ");
     const concern = $("bookingConcern").value.trim();
 
     if (!validateClinicSchedule(date, time, dateEl, timeEl)) return;
+    if (!requireService("booking")) return;
 
     let patient = patients.find(p => p.name.toLowerCase() === name.toLowerCase());
     if (!patient) {
-        patient = { id: nextId("P", patients), name, contact, email, dob, address, gender: "", emergency: "", concern, status: "Active" };
+        patient = { id: nextId("P", patients), name, contact, email, dob, address, gender, emergency: "", concern, status: "Active" };
         patients.push(patient);
     } else {
         if (contact && !patient.contact) patient.contact = contact;
         if (email && !patient.email) patient.email = email;
         if (address && !patient.address) patient.address = address;
         if (dob && !patient.dob) patient.dob = dob;
+        if (gender && !patient.gender) patient.gender = gender;
     }
     save(STORAGE.patients, patients);
 
@@ -858,13 +1028,14 @@ $("appointmentForm").addEventListener("submit", e => {
         id: nextId("APT", appointments),
         patientId: patient.id,
         patientName: patient.name,
-        date, time, service,
+        date, time, service, services,
         status: "Pending",
         queueStatus: null
     });
     save(STORAGE.appointments, appointments);
 
     e.target.reset();
+    setBookingStep(1);   // CHANGE 3: return the form to step 1
     alert("Appointment submitted successfully!");
     showPublicPage("home");
     renderAll();
@@ -1038,7 +1209,7 @@ function completeAppointment(number) {
         futureMessage: "This appointment is scheduled for a future date and cannot be completed yet."
     })) {
         const appt = appointments.find(a => a.id === q.appointmentId);
-        deductMaterials(appt?.customMaterials || BOM[q.service] || {});
+        deductMaterials(materialsFor(appt || q));
         renderAll();
     }
 }
@@ -1052,7 +1223,8 @@ function openWalkinModal(patientId = "") {
     $("walkinPatient").innerHTML = patientOptions();
     $("walkinPatient").value = patientId;
     $("walkinMaterialInsightCard").classList.add("hidden");
-    adjustments.walkin = {};
+        adjustments.walkin = {};
+    setSelectedServices("walkin");
     openModal("walkinModal");
 }
 
@@ -1064,14 +1236,17 @@ function registerPatientWalkin(id) {
 $("walkinForm").addEventListener("submit", e => {
     e.preventDefault();
 
-    const patient = patients.find(p => p.id === $("walkinPatient").value);
+        const patient = patients.find(p => p.id === $("walkinPatient").value);
     if (!patient) { alert("Please select a patient."); return; }
+    if (!requireService("walkin")) return;
+    const services = selectedServices("walkin");
 
     const walkin = {
         number: nextQueue("W", walkins),
         patientId: patient.id,
         patientName: patient.name,
-        service: $("walkinService").value,
+        service: services.join(", "),
+        services,
         time: new Date().toTimeString().slice(0, 5),
         date: today(),
         status: "Waiting",
@@ -1116,7 +1291,7 @@ function serveWalkin(number) {
 function completeWalkin(number) {
     const q = setWalkinStatus(number, "Completed");
     if (!q) return;
-    deductMaterials(q.customMaterials || BOM[q.service] || {});
+    deductMaterials(materialsFor(q));
     renderAll();
 }
 
@@ -1150,28 +1325,159 @@ function renderSchedule() {
 const stockBadge = i =>
     `<span class="badge ${i.stock <= i.minimum ? "no-show" : "approved"}">${i.stock <= i.minimum ? "Restock" : "OK"}</span>`;
 
+const servicesUsing = name => SERVICES.filter(s => BOM[s] && name in BOM[s]);
+
+function serviceChips(name) {
+    const used = servicesUsing(name);
+    if (!used.length) return `<span class="svc-chip none">Not assigned</span>`;
+    if (used.length === SERVICES.length) return `<span class="svc-chip all"><i class="fa-solid fa-layer-group"></i> All services</span>`;
+    return used.map(s => `<span class="svc-chip">${esc(s)}</span>`).join("");
+}
+
 function renderInventory() {
     const table = $("inventoryTable");
     if (!table) return;
 
-    table.innerHTML = inventory.map(i => `
+    const q = ($("inventorySearch")?.value || "").trim().toLowerCase();
+    const matches = (item, group) =>
+        !q || item.name.toLowerCase().includes(q) || group.toLowerCase().includes(q);
+
+    const itemRow = i => `
         <tr>
-            <td><strong>${esc(i.name)}</strong></td>
-            <td>${i.stock}</td>
+            <td><strong>${esc(i.name)}</strong>${i.reusable ? `<span class="mat-tag">Reusable</span>` : ""}</td>
+            <td>${i.stock}${i.unit ? ` <small class="unit">${esc(i.unit)}</small>` : ""}</td>
             <td>${i.minimum}</td>
             <td>${stockBadge(i)}</td>
-            <td><button class="action-btn success" onclick="openRestockModal('${i.id}')">Edit</button></td>
-        </tr>`).join("");
+            <td><button class="action-btn primary" onclick="openMaterialModal('${i.id}')">Edit</button></td>
+        </tr>`;
+
+    const groupRow = title => `<tr class="inv-group"><td colspan="5">${esc(title)}</td></tr>`;
+
+    let html = "";
+
+        SERVICES.forEach(service => {
+        const items = inventory.filter(i =>
+            !(i.name in UNIVERSAL_MATERIALS) &&
+            BOM[service] && i.name in BOM[service] && matches(i, service));
+        if (items.length) html += groupRow(service) + items.map(itemRow).join("");
+    });
+
+        const assigned = new Set(
+        SERVICES.flatMap(s => Object.keys(BOM[s] || {})).filter(n => !(n in UNIVERSAL_MATERIALS))
+    );
+    const unassigned = inventory.filter(i => !assigned.has(i.name) && matches(i, "General supplies"));
+    if (unassigned.length) html += groupRow("General supplies") + unassigned.map(itemRow).join("");
+
+    table.innerHTML = html ||
+        `<tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">No materials found.</td></tr>`;
+}
+/* Add / edit material */
+function buildMaterialServiceRows(selected = {}) {
+    $("materialServiceList").innerHTML = SERVICES.map((s, i) => {
+        const on = selected[s] !== undefined;
+        return `
+        <div class="ms-row ${on ? "active" : ""}" data-service="${esc(s)}">
+            <input type="checkbox" class="row-check ms-check" id="msChk${i}" ${on ? "checked" : ""}>
+            <label class="ms-name" for="msChk${i}"><i class="fa-solid ${SERVICE_INFO[s].icon}"></i>${esc(s)}</label>
+            <span class="ms-qty">
+                <input type="number" class="ms-qty-input" min="1" value="${on ? selected[s] : 1}" ${on ? "" : "disabled"}
+                       aria-label="Quantity used per ${esc(s)} procedure">
+                per visit
+            </span>
+        </div>`;
+    }).join("");
 }
 
-function openRestockModal(id) {
-    const item = inventory.find(x => x.id === id);
-    if (!item) return;
-    $("restockId").value = item.id;
-    $("restockName").value = item.name;
-    $("restockValue").value = item.stock;
-    openModal("restockModal");
+$("materialServiceList").addEventListener("change", e => {
+    const chk = e.target.closest(".ms-check");
+    if (!chk) return;
+    const row = chk.closest(".ms-row");
+    row.classList.toggle("active", chk.checked);
+    row.querySelector(".ms-qty-input").disabled = !chk.checked;
+});
+
+function setAllMaterialServices(on) {
+    document.querySelectorAll("#materialServiceList .ms-check").forEach(chk => {
+        chk.checked = on;
+        chk.dispatchEvent(new Event("change", { bubbles: true }));
+    });
 }
+
+function openMaterialModal(id = "") {
+    const item = id ? inventory.find(x => x.id === id) : null;
+
+    $("materialForm").reset();
+    $("materialId").value = item?.id || "";
+    $("materialModalTitle").textContent = item ? "Material Details" : "Add Material";
+    $("materialSaveLabel").textContent = item ? "Save Changes" : "Add Material";
+    $("materialName").value = item?.name || "";
+    $("materialName").disabled = !!item;
+    $("materialType").value = item?.reusable ? "reusable" : "consumable";
+    $("materialUnit").value = item?.unit || "pcs";
+    $("materialStock").value = item ? item.stock : 0;
+    $("materialMin").value = item ? item.minimum : 5;
+    $("materialLead").value = item ? item.leadTime : 3;
+
+    const usage = item
+        ? Object.fromEntries(servicesUsing(item.name).map(s => [s, BOM[s][item.name]]))
+        : {};
+    buildMaterialServiceRows(usage);
+
+    openModal("materialModal");
+    setTimeout(() => (item ? $("materialStock") : $("materialName")).focus(), 30);
+}
+
+function closeMaterialModal() {
+    closeModal("materialModal");
+    $("materialForm").reset();
+}
+
+$("materialForm").addEventListener("submit", e => {
+    e.preventDefault();
+
+    const id = $("materialId").value;
+    const name = $("materialName").value.trim();
+    if (!name) { alert("Please enter the material name."); return; }
+    if (inventory.some(i => i.id !== id && i.name.toLowerCase() === name.toLowerCase())) {
+        alert("This material is already in the inventory.");
+        return;
+    }
+
+    const usage = {};
+    document.querySelectorAll("#materialServiceList .ms-row").forEach(row => {
+        if (!row.querySelector(".ms-check").checked) return;
+        usage[row.dataset.service] = Math.max(1, parseInt(row.querySelector(".ms-qty-input").value) || 1);
+    });
+
+    const fields = {
+        unit: $("materialUnit").value,
+        stock: Math.max(0, parseInt($("materialStock").value) || 0),
+        minimum: Math.max(0, parseInt($("materialMin").value) || 0),
+        leadTime: Math.max(1, parseInt($("materialLead").value) || 1),
+        reusable: $("materialType").value === "reusable"
+    };
+
+    let item = inventory.find(i => i.id === id);
+    if (item) {
+        Object.assign(item, fields);
+    } else {
+        item = { id: nextId("I", inventory), name, ...fields };
+        inventory.push(item);
+    }
+
+    SERVICES.forEach(s => {
+        BOM[s] ||= {};
+        if (usage[s]) BOM[s][item.name] = usage[s];
+        else delete BOM[s][item.name];
+    });
+
+    save(STORAGE.inventory, inventory);
+    save(STORAGE.bom, BOM);
+
+    closeMaterialModal();
+    renderAll();
+    alert(id ? `${item.name} was updated.` : `${item.name} was added to the inventory.`);
+});
 
 function handleRestockUpdate(e) {
     e.preventDefault();
@@ -1208,7 +1514,7 @@ function calculateForecast() {
         Object.entries(materialsFor(a)).forEach(([name, qty]) => { demand[name] = (demand[name] || 0) + qty; }));
 
     return inventory.map(item => {
-        const usage = demand[item.name] || 0;
+        const usage = item.reusable ? 0 : (demand[item.name] || 0);
         const projected = item.stock - usage;
         const dailyRate = usage / 30;
         return {
@@ -1230,12 +1536,24 @@ function formatDuration(days) {
 }
 
 function stockoutTag(x) {
-    if (x.daysUntilStockout === null) return `<span class="stockout-tag ok">No active usage — stock is stable</span>`;
+    if (x.stock <= 0)
+        return `<span class="stockout-tag critical">Out of stock now</span>`;
+
+    if (x.stock <= x.minimum)
+        return `<span class="stockout-tag critical">Low stock — only ${x.stock} left (minimum ${x.minimum})</span>`;
+
+    if (x.daysUntilStockout === null)
+        return `<span class="stockout-tag ok">No active usage — stock is stable</span>`;
+
     const time = formatDuration(x.daysUntilStockout);
-    if (x.daysUntilStockout <= 0) return `<span class="stockout-tag critical">Out of stock now</span>`;
-    if (x.daysUntilStockout <= x.leadTime) return `<span class="stockout-tag critical">Runs out in ~${time} (before restock arrives)</span>`;
+    if (x.daysUntilStockout <= x.leadTime)
+        return `<span class="stockout-tag critical">Runs out in ~${time} (before restock arrives)</span>`;
+
     return `<span class="stockout-tag">Runs out in ~${time}</span>`;
 }
+
+// 0 = out of stock, 1 = low stock, 2 = projected shortage, 3 = fine
+const forecastSeverity = x => x.stock <= 0 ? 0 : x.stock <= x.minimum ? 1 : x.warning ? 2 : 3;
 
 function renderForecast() {
     const forecast = calculateForecast();
@@ -1244,7 +1562,7 @@ function renderForecast() {
     $("forecastMaterials").textContent = inventory.length;
     $("forecastWarnings").textContent = forecast.filter(x => x.warning).length;
 
-    $("forecastResults").innerHTML = forecast.map(x => `
+    const card = x => `
         <div class="forecast-result ${x.warning ? "warning" : ""}">
             <strong>${esc(x.name)}</strong>
             <span>Current Stock: ${x.stock} · Projected Usage: ${x.projectedUsage} · Remaining: ${x.projectedStock} · Supplier Lead Time: ${x.leadTime} days</span>
@@ -1252,7 +1570,19 @@ function renderForecast() {
             ${x.warning
                 ? `<button class="action-btn danger" onclick="suggestRestock('${esc(x.name)}',${x.projectedStock},${x.leadTime})">Suggest Restock</button>`
                 : `<span>✓ Sufficient stock</span>`}
-        </div>`).join("");
+        </div>`;
+
+    const bySeverity = (a, b) => forecastSeverity(a) - forecastSeverity(b) || a.name.localeCompare(b.name);
+    const needs = forecast.filter(x => x.warning).sort(bySeverity);
+    const fine = forecast.filter(x => !x.warning);
+
+    $("forecastResults").innerHTML =
+        (needs.length
+            ? `<div class="fc-section danger"><i class="fa-solid fa-triangle-exclamation"></i> Needs Restocking <span>${needs.length}</span></div>${needs.map(card).join("")}`
+            : `<div class="fc-all-good"><i class="fa-solid fa-circle-check"></i> All materials have sufficient stock.</div>`)
+        + (fine.length
+            ? `<div class="fc-section"><i class="fa-solid fa-circle-check"></i> Sufficient Stock <span>${fine.length}</span></div>${fine.map(card).join("")}`
+            : "");
 
     renderForecastSummary();
 }
@@ -1286,10 +1616,10 @@ function renderPublicQueues() {
 /*  Dashboard  */
 const charts = {};
 function drawChart(key, canvasId, config) {
-    const ctx = $(canvasId)?.getContext("2d");
-    if (!ctx) return;
+    const canvas = $(canvasId);
+    if (!canvas || typeof Chart === "undefined") return;
     charts[key]?.destroy();
-    charts[key] = new Chart(ctx, config);
+    charts[key] = new Chart(canvas, config);
 }
 
 const shortWeekday = s => new Date(s + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
@@ -1307,7 +1637,7 @@ function renderDashboardCharts() {
     };
 
     const serviceCounts = {};
-    appointments.forEach(a => { serviceCounts[a.service] = (serviceCounts[a.service] || 0) + 1; });
+    appointments.forEach(a => servicesOf(a).forEach(s => { serviceCounts[s] = (serviceCounts[s] || 0) + 1; }));
 
     drawChart("gender", "genderChart", {
         type: "doughnut",
@@ -1327,13 +1657,17 @@ function renderDashboardCharts() {
         options: { indexAxis: "y", plugins: { legend: { display: false } }, maintainAspectRatio: false }
     });
 
+       const lowest = [...inventory]
+        .sort((a, b) => a.stock / (a.minimum || 1) - b.stock / (b.minimum || 1))
+        .slice(0, 8);
+
     drawChart("inventory", "inventoryChart", {
         type: "bar",
         data: {
-            labels: inventory.map(i => i.name),
+            labels: lowest.map(i => i.name),
             datasets: [
-                { label: "Current Stock", data: inventory.map(i => i.stock), backgroundColor: "#5b0b68" },
-                { label: "Min Required", data: inventory.map(i => i.minimum), backgroundColor: "#d93434" }
+                { label: "Current Stock", data: lowest.map(i => i.stock), backgroundColor: "#5b0b68" },
+                { label: "Min Required", data: lowest.map(i => i.minimum), backgroundColor: "#d93434" }
             ]
         },
         options: { scales: { y: { beginAtZero: true } }, maintainAspectRatio: false }
@@ -1712,7 +2046,7 @@ function printFilteredReport() {
 let advanceCalendar;
 
 const CAL_DURATION = {
-    "Dental Check-up": 45, "Dental Cleaning": 45, "Tooth Restoration": 60, "Tooth Extraction": 45, "Braces": 60
+    "Dental Check-up": 45, "Dental Cleaning": 45, "Tooth Restoration": 60, "Tooth Extraction": 45, "Braces": 60, "Prosthodontics": 60
 };
 
 const calAddMinutes = (timeStr, mins) => {
@@ -1728,7 +2062,7 @@ function calBuildEvents() {
         .filter(a => a.date && a.time)
         .filter(a => !q || `${a.patientName} ${a.service}`.toLowerCase().includes(q))
         .map(a => {
-            const end = calAddMinutes(a.time, CAL_DURATION[a.service] || 45);
+            const end = calAddMinutes(a.time, servicesOf(a).reduce((sum, s) => sum + (CAL_DURATION[s] || 45), 0) || 45);
             return {
                 id: a.id,
                 title: a.patientName,
@@ -1844,7 +2178,7 @@ function openAdvanceCalendar() {
                     return { html: `<div class="cal-mo"><span class="cal-mo-time">${esc(p.startLabel)}</span><span class="cal-mo-name">${esc(ev.title)}</span></div>` };
                 }
 
-                const icon = SERVICE_INFO[p.service]?.icon || "fa-tooth";
+                const icon = SERVICE_INFO[p.service]?.icon || (String(p.service).includes(",") ? "fa-layer-group" : "fa-tooth");
                 return { html: `
                     <div class="cal-ev-inner">
                         <div class="cal-ev-name"><i class="fa-solid ${icon}"></i><span>${esc(ev.title)}</span></div>
@@ -2063,8 +2397,8 @@ function updateAdminNotifications() {
     if (sub) sub.textContent = unread ? `${unread} unread` : "You're all caught up";
 
     if (!items.length) {
-        list.innerHTML = ntEmpty("fa-circle-check", "Nothing needs attention",
-            "New appointment requests and stock alerts will show up here.");
+        list.innerHTML = ntEmpty("fa-folder-open", "No appointment found",
+    "We couldn't find a booking for this contact number. Please use the same number you gave when booking.");
         return;
     }
 
@@ -2115,20 +2449,10 @@ $("ntAdminList").addEventListener("keydown", e => {
 
 /* Patient (public) notifications */
 function ntFindAppointments(query) {
-    const q = String(query || "").trim();
-    if (!q) return [];
+    const d = contactDigits(query);
+    if (!d || contactError(d)) return [];
 
-    let matched;
-    if (ntIsNumeric(q)) {
-        const d = ntDigits(q).slice(-10);
-        if (d.length < 10) return [];
-        matched = patients.filter(p => ntDigits(p.contact).slice(-10) === d);
-    } else {
-        const n = ntNormName(q);
-        matched = patients.filter(p => ntNormName(p.name) === n);
-    }
-
-    const ids = new Set(matched.map(p => p.id));
+    const ids = new Set(patients.filter(p => contactDigits(p.contact) === d).map(p => p.id));
     return appointments.filter(a => ids.has(a.patientId));
 }
 
@@ -2274,8 +2598,17 @@ function ntRenderPatientResults(query) {
 }
 
 const NT_DEFAULT_HINT = ["Check your appointment",
-    "Enter the contact number or full name you booked with to see your status and queue position."];
+    "Enter the contact number you used when booking to see your status and queue position."];
 
+    function ntSavedLookup() {
+    const saved = localStorage.getItem(NT_KEYS.lookup);
+    if (saved && contactError(saved)) {
+        localStorage.removeItem(NT_KEYS.lookup);
+        localStorage.removeItem(NT_KEYS.seen);
+        return null;
+    }
+    return saved;
+}
 function ntShowPatientHint(title, text, icon = "fa-calendar-check") {
     ntShownQuery = null;
     const list = $("ntPatientList");
@@ -2298,25 +2631,25 @@ function openPatientPanel() {
 
 function checkPatientNotifications() {
     const input = $("ntPatientSearch");
-    const q = (input?.value || "").trim();
+    const q = contactDigits(input?.value);
+    if (input) input.value = q;
 
     if (!q) {
-        ntShowPatientHint("Enter your details",
-            "Type your complete contact number or your full name to look up your appointment.", "fa-keyboard");
+        ntShowPatientHint("Enter your contact number",
+            "Type the 11-digit contact number you used when booking, for example 09171234567.", "fa-keyboard");
         input?.focus();
         return;
     }
 
-    if (ntIsNumeric(q) && ntDigits(q).length < 10) {
-        ntShowPatientHint("Contact number is incomplete",
-            "Please enter your complete contact number, for example 09171234567.", "fa-mobile-screen");
+    const error = contactError(q);
+    if (error) {
+        ntShowPatientHint("Please check the number", error, "fa-mobile-screen");
         return;
     }
 
     if (ntRenderPatientResults(q)) localStorage.setItem(NT_KEYS.lookup, q);
     updatePatientNotifications();
 }
-
 function ntClearLookup() {
     localStorage.removeItem(NT_KEYS.lookup);
     localStorage.removeItem(NT_KEYS.seen);
@@ -2483,12 +2816,88 @@ function undoDelete() {
     hideUndoToast();
     renderAll();
 }
+/* Contact number validation (PH mobile: 09XXXXXXXXX) */
+const CONTACT_LEN = 11;
 
+// Keeps digits only, converts +63 9XX... to 09XX..., caps at 11 digits
+function contactDigits(value) {
+    let d = String(value || "").replace(/\D/g, "");
+    if (d.startsWith("63") && d.length === 12) d = "0" + d.slice(2);
+    return d.slice(0, CONTACT_LEN);
+}
+
+function contactStatus(value) {
+    const d = contactDigits(value);
+    if (!d) return { tone: "idle", icon: "fa-circle-info", text: "Format: 09XXXXXXXXX (11 digits)", error: "", count: 0 };
+
+    if (d[0] !== "0" || (d.length > 1 && d[1] !== "9"))
+        return { tone: "error", icon: "fa-circle-xmark", text: "Number must start with 09.", error: "Contact number must start with 09.", count: d.length };
+
+    if (d.length < CONTACT_LEN)
+        return {
+            tone: "warn", icon: "fa-triangle-exclamation",
+            text: `Please check the number: ${d.length} of ${CONTACT_LEN} digits entered.`,
+            error: "Contact number must be exactly 11 digits (e.g. 09171234567).",
+            count: d.length
+        };
+
+    return { tone: "ok", icon: "fa-circle-check", text: "check the number if correct.", error: "", count: d.length };
+}
+
+// Returns an error message, or "" when the number is valid
+const contactError = value => contactStatus(value).error;
+
+function attachContactValidator(id) {
+    const input = $(id);
+    if (!input || input.dataset.contactReady) return;
+    input.dataset.contactReady = "true";
+    input.removeAttribute("pattern");
+    input.removeAttribute("maxlength");
+
+    const hint = document.createElement("small");
+    hint.className = "field-hint";
+    hint.setAttribute("aria-live", "polite");
+    input.insertAdjacentElement("afterend", hint);
+
+    let touched = false;
+
+    const refresh = () => {
+        const s = contactStatus(input.value);
+        const focused = document.activeElement === input;
+        const tone = s.tone === "warn" && touched && !focused ? "error" : s.tone;
+
+        input.setCustomValidity(s.error);
+        input.classList.toggle("is-valid", tone === "ok");
+        input.classList.toggle("is-invalid", tone === "error");
+
+        const visible = s.tone !== "idle" || focused;
+        hint.className = `field-hint tone-${tone}${visible ? " show" : ""}`;
+        hint.innerHTML = `<i class="fa-solid ${s.icon}"></i><span>${esc(s.text)}</span>` +
+            (s.count ? `<em class="hint-count">${s.count}/${CONTACT_LEN}</em>` : "");
+    };
+
+    input.addEventListener("input", () => {
+        const clean = contactDigits(input.value);
+        if (clean !== input.value) input.value = clean;
+        refresh();
+    });
+    input.addEventListener("focus", refresh);
+    input.addEventListener("blur", () => { touched = true; refresh(); });
+    input.form?.addEventListener("reset", () => { touched = false; setTimeout(refresh, 0); });
+
+    refresh();
+}
 /* Initialization */
 document.addEventListener("DOMContentLoaded", () => {
     renderServiceUI();
     renderAll();
 
+    attachContactValidator("bookingContact");   // <-- NEW
+    attachContactValidator("patientContact");   // <-- NEW
+    $("ntPatientSearch").addEventListener("input", e => {
+        const clean = contactDigits(e.target.value);
+        if (clean !== e.target.value) e.target.value = clean;
+    });
     const t = today();
     $("bookingDate").min = t;
     $("adminAppointmentDate").min = t;
